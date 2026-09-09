@@ -12,6 +12,15 @@ Le projet fonctionne en mode démo sans configuration Supabase. Pour activer l'a
 
 Les données métier sont isolées par `federation_id` et protégées par les règles RLS. Ne mettez jamais la clé `service_role` dans le frontend.
 
+### Déploiement GitHub Pages
+
+Le déploiement est automatique à chaque push sur `main`. Dans GitHub, ajoutez ces secrets dans **Settings > Secrets and variables > Actions** :
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Puis activez **Settings > Pages > Source: GitHub Actions**. L'application sera disponible à `https://<organisation>.github.io/sportshield/`.
+
 ### Invitations de membres
 
 Les invitations utilisent la fonction Supabase `supabase/functions/invite-member/index.ts`, car l'envoi via `auth.admin.inviteUserByEmail` nécessite la clé `service_role` côté serveur.
