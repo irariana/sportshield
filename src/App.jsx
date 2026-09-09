@@ -1,25 +1,17 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
-import AppLayout from './layouts/AppLayout'
-import AlertesPage from './pages/AlertesPage'
-import DashboardPage from './pages/DashboardPage'
+import FederationSetupPage from './pages/FederationSetupPage'
+import FederationWorkspacePage from './pages/FederationWorkspacePage'
 import LoginPage from './pages/LoginPage'
-import NotFoundPage from './pages/NotFoundPage'
-import SportifsPage from './pages/SportifsPage'
 
 function App() {
   return (
     <HashRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-
-        <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/sportifs" element={<SportifsPage />} />
-          <Route path="/alertes" element={<AlertesPage />} />
-        </Route>
-
-        <Route path="*" element={<NotFoundPage />} />
+        <Route path="/federation/setup" element={<FederationSetupPage />} />
+        <Route path="/federation" element={<FederationWorkspacePage />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </HashRouter>
   )
