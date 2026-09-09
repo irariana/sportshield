@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Shield, UserPlus } from 'lucide-react'
+import { getFederationForCurrentUser } from '../lib/federationApi'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 function LoginPage() {
@@ -32,7 +33,13 @@ function LoginPage() {
       return
     }
 
-    navigate('/dashboard')
+    const federationResult = await getFederationForCurrentUser()
+    if (federationResult.error) {
+      setFormError(federationResult.error.message)
+      return
+    }
+
+    navigate(federationResult.data ? '/federation' : '/federation/setup')
   }
 
   async function handleRegistrationSubmit(event) {
