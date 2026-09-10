@@ -128,11 +128,6 @@ on public.profiles for all
 using (federation_id = public.current_federation_id() and public.is_current_user_admin())
 with check (federation_id = public.current_federation_id());
 
-create policy "Users can update their own profile link"
-on public.profiles for update
-using (id = auth.uid())
-with check (id = auth.uid());
-
 create policy "Users can view federation members"
 on public.federation_members for select
 using (federation_id = public.current_federation_id());
@@ -156,23 +151,52 @@ on public.federation_invitations for all
 using (federation_id = public.current_federation_id() and public.is_current_user_admin())
 with check (federation_id = public.current_federation_id() and public.is_current_user_admin());
 
+create or replace function public.accept_federation_invitation(
+  invitation_id uuid,
+  member_name text,
+  member_sport text default null,
+  member_phone text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  invitation public.federation_invitations;
+begin
+  select * into invitation from public.federation_invitations
+  where id = invitation_id and lower(email) = lower(auth.jwt()->>'email')
+    and accepted_at is null and expires_at > now() for update;
+  if not found then raise exception 'Invitation invalide ou expiree'; end if;
+  if not exists (select 1 from public.profiles where id = auth.uid() and federation_id = invitation.federation_id and role = invitation.role) then
+    raise exception 'Profil invite introuvable';
+  end if;
+  update public.profiles set full_name = nullif(trim(member_name), ''), sport = nullif(trim(member_sport), ''), phone = nullif(trim(member_phone), ''), updated_at = now() where id = auth.uid();
+  update public.federation_invitations set accepted_at = now() where id = invitation.id;
+end;
+$$;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  invitation public.federation_invitations;
 begin
+  select * into invitation from public.federation_invitations
+  where id = nullif(new.raw_user_meta_data->>'invitation_id', '')::uuid
+    and lower(email) = lower(new.email) and accepted_at is null and expires_at > now();
   insert into public.profiles (id, federation_id, full_name, email, role)
   values (
     new.id,
-    nullif(new.raw_user_meta_data->>'federation_id', '')::uuid,
-    coalesce(new.raw_user_meta_data->>'full_name', new.email, 'Nouvel utilisateur'),
+    invitation.federation_id,
+    coalesce(new.email, 'Nouvel utilisateur'),
     new.email,
-    coalesce((new.raw_user_meta_data->>'role')::app_role, 'admin')
+    coalesce(invitation.role, 'admin')
   )
   on conflict (id) do update set
-    federation_id = excluded.federation_id,
-    role = excluded.role,
     email = excluded.email;
   return new;
 end;

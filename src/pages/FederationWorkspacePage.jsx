@@ -91,7 +91,6 @@ function FederationWorkspacePage() {
     const result = await inviteFederationMember({
       email: data.get('email'),
       role: data.get('role'),
-      full_name: data.get('full_name'),
     })
     if (result.error || result.data?.error) {
       setMessage(result.error?.message || result.data.error)
@@ -103,6 +102,10 @@ function FederationWorkspacePage() {
   }
 
   if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">Chargement de votre fédération...</div>
+
+  if (account?.role !== 'admin') {
+    return <MemberWorkspace account={account} federation={federation} onLogout={handleLogout} />
+  }
 
   const counts = {
     sportifs: members.filter((member) => member.role === 'sportif').length,
@@ -134,6 +137,11 @@ function FederationWorkspacePage() {
   )
 }
 
+function MemberWorkspace({ account, federation, onLogout }) {
+  const roleLabels = { medecin: 'Médecin', entraineur: 'Entraîneur', sportif: 'Sportif' }
+  return <div className="min-h-screen bg-slate-100 text-slate-800"><header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-8"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><Shield className="h-5 w-5" /></div><div><p className="font-semibold text-slate-900">{federation.name}</p><p className="text-xs text-slate-500">Espace {roleLabels[account.role] || account.role}</p></div></div><button type="button" onClick={onLogout} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-900" aria-label="Déconnexion"><LogOut className="h-4 w-4" /></button></header><main className="mx-auto max-w-4xl p-5 sm:p-8"><section className="rounded-3xl bg-slate-950 p-7 text-white shadow-xl shadow-slate-300/40 sm:p-10"><p className="text-sm font-medium text-sky-300">Accès membre</p><h1 className="mt-3 text-3xl font-semibold">Bienvenue, {account.full_name}</h1><p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300">Vous êtes connecté à {federation.name} avec les permissions de votre rôle. Les fonctions d’administration restent réservées à l’administrateur de la fédération.</p></section><section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6"><p className="text-sm font-medium uppercase tracking-[0.16em] text-sky-600">Votre rôle</p><p className="mt-3 text-xl font-semibold text-slate-900">{roleLabels[account.role] || account.role}</p><p className="mt-2 text-sm text-slate-500">Vos outils et données disponibles seront adaptés à ce rôle.</p></section></main></div>
+}
+
 function Overview({ federation, counts, onConfigure }) {
   return <div className="space-y-7"><section className="rounded-3xl bg-slate-950 p-7 text-white shadow-xl shadow-slate-300/40 sm:p-9"><p className="flex items-center gap-2 text-sm font-medium text-sky-300"><Building2 className="h-4 w-4" />{federation.country}</p><h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{federation.name}</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Votre espace est créé. Vous pouvez maintenant centraliser les membres, sportifs, capteurs et données de cette fédération.</p><button type="button" onClick={onConfigure} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-sky-50"><Settings className="h-4 w-4" /> Modifier la fédération</button></section><section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[['Sportifs', counts.sportifs, Users], ['Utilisateurs', counts.utilisateurs, Shield], ['Capteurs', 0, Watch], ['Données', 0, Database]].map(([label, value, Icon]) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><p className="text-sm text-slate-500">{label}</p><Icon className="h-4 w-4 text-sky-600" /></div><p className="mt-5 text-3xl font-semibold text-slate-900">{value}</p><p className="mt-2 text-xs text-slate-400">Aucune donnée fictive</p></div>)}</section><section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center"><Database className="mx-auto h-8 w-8 text-slate-300" /><h3 className="mt-4 text-lg font-semibold text-slate-800">Votre espace métier est prêt</h3><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">Les tableaux de gestion seront alimentés uniquement par les membres et les données que vous ajouterez.</p></section></div>
 }
@@ -147,7 +155,7 @@ function MemberModal({ onSubmit, onClose }) {
 }
 
 function InviteModal({ onSubmit, onClose }) {
-  return <Modal title="Inviter un membre" onClose={onClose}><form onSubmit={onSubmit} className="space-y-4"><p className="text-sm text-slate-500">L’invitation expire automatiquement après 7 jours. L’accès est bloqué jusqu’à son activation.</p><input name="full_name" required placeholder="Nom complet" className={fieldClass} /><input name="email" type="email" required placeholder="Email professionnel" className={fieldClass} /><select name="role" required className={fieldClass}><option value="medecin">Médecin</option><option value="entraineur">Entraîneur</option><option value="sportif">Sportif avec compte</option></select><ModalActions submitLabel="Envoyer l’invitation" /></form></Modal>
+  return <Modal title="Inviter un membre" onClose={onClose}><form onSubmit={onSubmit} className="space-y-4"><p className="text-sm text-slate-500">La personne recevra un lien valable 7 jours et renseignera elle-même son profil et son mot de passe.</p><input name="email" type="email" required placeholder="Email professionnel" className={fieldClass} /><select name="role" required className={fieldClass}><option value="medecin">Médecin</option><option value="entraineur">Entraîneur</option><option value="sportif">Sportif avec compte</option></select><ModalActions submitLabel="Envoyer l’invitation" /></form></Modal>
 }
 
 function Modal({ title, onClose, children }) { return <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/60 px-4"><div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><h3 className="text-xl font-semibold text-slate-900">{title}</h3><button type="button" onClick={onClose} className="text-sm text-slate-500 hover:text-slate-900">Fermer</button></div><div className="mt-5">{children}</div></div></div> }

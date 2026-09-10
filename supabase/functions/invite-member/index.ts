@@ -36,14 +36,14 @@ Deno.serve(async (request) => {
     const body = await request.json()
     const email = String(body.email ?? '').trim().toLowerCase()
     const role = String(body.role ?? '')
-    const fullName = String(body.full_name ?? '').trim()
 
     if (!email || !email.includes('@') || !allowedRoles.has(role)) {
       return json({ error: 'Email ou role invalide.' }, 400)
     }
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    const redirectTo = Deno.env.get('APP_URL')
+    const appUrl = Deno.env.get('APP_URL')?.replace(/\/$/, '')
+    const redirectTo = appUrl ? `${appUrl}/#/invite` : undefined
     const { data: invitation, error: invitationError } = await adminClient
       .from('federation_invitations')
       .insert({
@@ -61,9 +61,6 @@ Deno.serve(async (request) => {
     const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
       redirectTo,
       data: {
-        full_name: fullName || email,
-        role,
-        federation_id: profile.federation_id,
         invitation_id: invitation.id,
       },
     })

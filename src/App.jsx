@@ -2,12 +2,14 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import FederationSetupPage from './pages/FederationSetupPage'
 import FederationWorkspacePage from './pages/FederationWorkspacePage'
 import LoginPage from './pages/LoginPage'
+import InvitePage from './pages/InvitePage'
 
 function App() {
   return (
     <HashRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/invite" element={<InvitePage />} />
         <Route path="/federation/setup" element={<FederationSetupPage />} />
         <Route path="/federation" element={<FederationWorkspacePage />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
