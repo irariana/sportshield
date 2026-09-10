@@ -29,10 +29,12 @@ Après avoir exécuté le SQL de migration, déployez la fonction avec la CLI Su
 
 ```bash
 supabase functions deploy invite-member
-supabase secrets set APP_URL=http://localhost:5173
+supabase secrets set APP_URL=https://<organisation>.github.io/sportshield/
 ```
 
-La fonction reçoit automatiquement `SUPABASE_URL`, `SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` dans Supabase. En production, remplacez `APP_URL` par l'URL publique de l'application.
+La fonction reçoit automatiquement `SUPABASE_URL`, `SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` dans Supabase. Ajoutez aussi cette URL dans **Authentication > URL Configuration > Redirect URLs** : `https://<organisation>.github.io/sportshield/#/invite`.
+
+Pour que les emails soient délivrés en production, configurez un fournisseur SMTP dans **Project Settings > Authentication > SMTP Settings**. Le service email par défaut de Supabase est limité et peut ne pas délivrer les invitations.
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
