@@ -3,6 +3,7 @@ import { Building2, Database, LogOut, MailPlus, Plus, Settings, Shield, Users, W
 import { useNavigate } from 'react-router-dom'
 import { getAuthenticatedUser, getCurrentProfile, getFederationForCurrentUser, getFederationInvitations, getFederationMembers, inviteFederationMember } from '../lib/federationApi'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import AthleteDashboardPage from './AthleteDashboardPage'
 
 const sections = [
   { label: 'Vue d’ensemble', icon: Building2 },
@@ -104,6 +105,9 @@ function FederationWorkspacePage() {
   if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">Chargement de votre fédération...</div>
 
   if (account?.role !== 'admin') {
+    if (account?.role === 'sportif') {
+      return <AthleteDashboardPage account={account} federation={federation} onLogout={handleLogout} />
+    }
     return <MemberWorkspace account={account} federation={federation} onLogout={handleLogout} />
   }
 

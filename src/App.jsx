@@ -3,6 +3,7 @@ import FederationSetupPage from './pages/FederationSetupPage'
 import FederationWorkspacePage from './pages/FederationWorkspacePage'
 import LoginPage from './pages/LoginPage'
 import InvitePage from './pages/InvitePage'
+import AthleteDashboardPage from './pages/AthleteDashboardPage'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/invite" element={<InvitePage />} />
         <Route path="/federation/setup" element={<FederationSetupPage />} />
         <Route path="/federation" element={<FederationWorkspacePage />} />
+        <Route path="/athlete" element={<AthleteDashboardPage />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
