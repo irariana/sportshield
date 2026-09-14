@@ -93,7 +93,11 @@ function FederationWorkspacePage() {
       role: data.get('role'),
     })
     if (result.error || result.data?.error) {
-      setMessage(result.data?.error || result.error?.message || 'Impossible d’envoyer l’invitation.')
+      const functionError = result.data?.error
+      const networkError = result.error?.context?.status
+        ? `${result.error.message} (HTTP ${result.error.context.status})`
+        : result.error?.message
+      setMessage(functionError || networkError || 'Impossible d’envoyer l’invitation.')
       return
     }
     setInvitations((current) => [result.data.data, ...current])
