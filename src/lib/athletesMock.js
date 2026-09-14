@@ -31,6 +31,8 @@ const initialAthletes = [
   },
 ]
 
+const athletesStorageKey = 'sportshield:mock-athletes'
+
 export const sportOptions = {
   Natation: ['Natation course', 'Eau libre'],
   Athlétisme: ['Sprint', '100 m', '200 m', '400 m'],
@@ -39,7 +41,17 @@ export const sportOptions = {
 export const athleteStatusOptions = ['Actif', 'En pause', 'Blessé', 'Inactif']
 
 export function getMockAthletes() {
-  return initialAthletes.map((athlete) => ({ ...athlete }))
+  if (typeof window === 'undefined') return initialAthletes.map((athlete) => ({ ...athlete }))
+  try {
+    const stored = window.localStorage.getItem(athletesStorageKey)
+    return stored ? JSON.parse(stored) : initialAthletes.map((athlete) => ({ ...athlete }))
+  } catch {
+    return initialAthletes.map((athlete) => ({ ...athlete }))
+  }
+}
+
+export function saveMockAthletes(athletes) {
+  if (typeof window !== 'undefined') window.localStorage.setItem(athletesStorageKey, JSON.stringify(athletes))
 }
 
 // Demo only: the backend will generate and validate the definitive identifier.
