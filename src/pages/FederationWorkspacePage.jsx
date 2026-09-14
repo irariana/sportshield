@@ -39,6 +39,11 @@ function FederationWorkspacePage() {
       }
 
       const profileResult = await getCurrentProfile()
+      if (profileResult.error || profileResult.data?.status === 'inactif') {
+        await supabase.auth.signOut()
+        navigate('/login', { replace: true })
+        return
+      }
       const federationResult = await getFederationForCurrentUser()
       if (!federationResult.data) {
         navigate('/federation/setup', { replace: true })
@@ -47,6 +52,9 @@ function FederationWorkspacePage() {
 
       const membersResult = await getFederationMembers()
       const invitationsResult = await getFederationInvitations()
+      if (membersResult.error || invitationsResult.error) {
+        setMessage(membersResult.error?.message || invitationsResult.error?.message || 'Impossible de charger les membres et invitations.')
+      }
       setAccount(profileResult.data)
       setFederation(federationResult.data)
       setMembers(membersResult.data ?? [])
@@ -93,10 +101,21 @@ function FederationWorkspacePage() {
       role: data.get('role'),
     })
     if (result.error || result.data?.error) {
-      const functionError = result.data?.error
-      const networkError = result.error?.context?.status
-        ? `${result.error.message} (HTTP ${result.error.context.status})`
-        : result.error?.message
+      let functionError = result.data?.error
+      if (!functionError && result.error?.context?.json) {
+        try {
+          const errorPayload = await result.error.context.json()
+          functionError = errorPayload?.error || errorPayload?.message
+        } catch {
+          // The response body may already have been consumed by the Supabase client.
+        }
+      }
+      const status = result.error?.context?.status
+      const networkError = status === 404
+        ? 'La fonction d’invitation n’est pas déployée sur Supabase. Déployez « invite-member », puis réessayez.'
+        : status
+          ? `${result.error.message} (HTTP ${status})`
+          : result.error?.message
       setMessage(functionError || networkError || 'Impossible d’envoyer l’invitation.')
       return
     }
