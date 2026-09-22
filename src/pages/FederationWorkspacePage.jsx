@@ -3,6 +3,7 @@ import { Building2, Database, LogOut, MailPlus, Plus, Settings, Shield, Users, W
 import { useNavigate } from 'react-router-dom'
 import { getAuthenticatedUser, getCurrentProfile, getFederationForCurrentUser, getFederationInvitations, getFederationMembers, inviteFederationMember } from '../lib/federationApi'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import AthleteDashboardPage from './AthleteDashboardPage'
 
 const sections = [
   { label: 'Vue d’ensemble', icon: Building2 },
@@ -81,24 +82,19 @@ function FederationWorkspacePage() {
   async function handleAddMember(event) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
-    const profile = await getCurrentProfile()
-    if (!profile.data?.federation_id) return
-
-    const { data: member, error } = await supabase.from('federation_members').insert({
-      federation_id: profile.data.federation_id,
-      full_name: data.get('full_name'),
+    const result = await inviteFederationMember({
       email: data.get('email'),
       role: 'sportif',
+      full_name: data.get('full_name'),
       sport: data.get('sport'),
-      status: 'actif',
-    }).select().single()
-    if (error) {
-      setMessage(error.message)
+    })
+    if (result.error || result.data?.error) {
+      setMessage(result.data?.error || result.error?.message || 'Impossible d’envoyer l’invitation.')
       return
     }
-    setMembers((current) => [member, ...current])
+    setInvitations((current) => [result.data.data, ...current])
     setModal(null)
-    setMessage('Sportif ajouté à la fédération.')
+    setMessage('Invitation envoyée au sportif. Il pourra créer son mot de passe depuis le lien reçu par email.')
   }
 
   async function handleInvite(event) {
@@ -135,6 +131,9 @@ function FederationWorkspacePage() {
   if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">Chargement de votre fédération...</div>
 
   if (account?.role !== 'admin') {
+    if (account?.role === 'sportif') {
+      return <AthleteDashboardPage account={account} federation={federation} onLogout={handleLogout} />
+    }
     return <MemberWorkspace account={account} federation={federation} onLogout={handleLogout} />
   }
 
@@ -158,7 +157,7 @@ function FederationWorkspacePage() {
           <div className="p-5 sm:p-8">
             <div className="mb-6 flex gap-2 overflow-x-auto md:hidden">{sections.map(({ label }) => <button key={label} type="button" onClick={() => handleSectionChange(label)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium ${activeSection === label ? 'bg-slate-900 text-white' : 'bg-white text-slate-500'}`}>{label}</button>)}</div>
             {message && <p className="mb-5 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-700">{message}</p>}
-            {activeSection === 'Vue d’ensemble' ? <Overview federation={federation} counts={counts} onConfigure={() => navigate('/federation/setup')} /> : <EmptySection title={activeSection} members={activeSection === 'Sportifs' ? members.filter((member) => member.role === 'sportif') : activeSection === 'Utilisateurs' ? members.filter((member) => member.role !== 'sportif') : []} invitations={activeSection === 'Utilisateurs' ? invitations : []} onAdd={activeSection === 'Sportifs' ? () => setModal('member') : undefined} onInvite={activeSection === 'Utilisateurs' ? () => setModal('invite') : undefined} />}
+            {activeSection === 'Vue d’ensemble' ? <Overview federation={federation} counts={counts} onConfigure={() => navigate('/federation/setup')} /> : <EmptySection title={activeSection} members={activeSection === 'Sportifs' ? members.filter((member) => member.role === 'sportif') : activeSection === 'Utilisateurs' ? members.filter((member) => member.role !== 'sportif') : []} invitations={activeSection === 'Sportifs' ? invitations.filter((invitation) => invitation.role === 'sportif') : activeSection === 'Utilisateurs' ? invitations.filter((invitation) => invitation.role !== 'sportif') : []} onAdd={activeSection === 'Sportifs' ? () => setModal('member') : undefined} onInvite={activeSection === 'Utilisateurs' ? () => setModal('invite') : undefined} />}
           </div>
         </main>
       </div>

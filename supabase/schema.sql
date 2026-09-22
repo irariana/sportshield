@@ -226,6 +226,16 @@ begin
   set full_name = nullif(trim(member_name), ''), sport = nullif(trim(member_sport), ''), phone = nullif(trim(member_phone), ''), status = 'actif', updated_at = now()
   where id = auth.uid();
 
+  insert into public.federation_members (federation_id, full_name, role, email, sport, phone, status)
+  values (
+    invitation.federation_id,
+    nullif(trim(member_name), ''),
+    invitation.role,
+    invitation.email,
+    nullif(trim(member_sport), ''),
+    nullif(trim(member_phone), ''),
+    'actif'
+  );
   insert into public.federation_members (federation_id, full_name, role, email, status, sport, phone)
   values (invitation.federation_id, nullif(trim(member_name), ''), invitation.role, invitation.email, 'actif', nullif(trim(member_sport), ''), nullif(trim(member_phone), ''));
 

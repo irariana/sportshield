@@ -36,6 +36,8 @@ Deno.serve(async (request) => {
     const body = await request.json()
     const email = String(body.email ?? '').trim().toLowerCase()
     const role = String(body.role ?? '')
+    const fullName = String(body.full_name ?? '').trim()
+    const sport = String(body.sport ?? '').trim()
 
     if (!email || !email.includes('@') || !allowedRoles.has(role)) {
       return json({ error: 'Email ou role invalide.' }, 400)
@@ -66,6 +68,8 @@ Deno.serve(async (request) => {
       redirectTo,
       data: {
         invitation_id: invitation.id,
+        full_name: fullName,
+        sport,
       },
     })
 
