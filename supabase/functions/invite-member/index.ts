@@ -46,6 +46,7 @@ Deno.serve(async (request) => {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     const appUrl = Deno.env.get('APP_URL')?.replace(/\/$/, '')
     const redirectTo = appUrl ? `${appUrl}/#/invite` : undefined
+    console.log('invite-member: creating invitation', { email, role, federationId: profile.federation_id })
     const { data: invitation, error: invitationError } = await adminClient
       .from('federation_invitations')
       .insert({
@@ -58,7 +59,10 @@ Deno.serve(async (request) => {
       .select()
       .single()
 
-    if (invitationError) return json({ error: invitationError.message }, 400)
+    if (invitationError) {
+      console.error('invite-member: invitation insert failed', invitationError)
+      return json({ error: `Création de l'invitation impossible : ${invitationError.message}` }, 400)
+    }
 
     const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
       redirectTo,
@@ -70,8 +74,9 @@ Deno.serve(async (request) => {
     })
 
     if (inviteError) {
+      console.error('invite-member: email delivery failed', inviteError)
       await adminClient.from('federation_invitations').delete().eq('id', invitation.id)
-      return json({ error: inviteError.message }, 400)
+      return json({ error: `Envoi de l'email impossible : ${inviteError.message}` }, 400)
     }
 
     return json({ data: { id: invitation.id, email, role, expires_at: expiresAt } }, 201)

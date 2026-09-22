@@ -8,7 +8,9 @@ stable
 security definer
 set search_path = public
 as $$
-  select federation_id from public.profiles where id = auth.uid();
+  select federation_id
+  from public.profiles
+  where id = auth.uid() and status = 'actif';
 $$;
 
 create or replace function public.is_current_user_admin()
@@ -172,7 +174,9 @@ begin
   if not exists (select 1 from public.profiles where id = auth.uid() and federation_id = invitation.federation_id and role = invitation.role) then
     raise exception 'Profil invite introuvable';
   end if;
-  update public.profiles set full_name = nullif(trim(member_name), ''), sport = nullif(trim(member_sport), ''), phone = nullif(trim(member_phone), ''), updated_at = now() where id = auth.uid();
+  update public.profiles set full_name = nullif(trim(member_name), ''), sport = nullif(trim(member_sport), ''), phone = nullif(trim(member_phone), ''), status = 'actif', updated_at = now() where id = auth.uid();
+  insert into public.federation_members (federation_id, full_name, role, email, status, sport, phone)
+  values (invitation.federation_id, nullif(trim(member_name), ''), invitation.role, invitation.email, 'actif', nullif(trim(member_sport), ''), nullif(trim(member_phone), ''));
   update public.federation_invitations set accepted_at = now() where id = invitation.id;
 end;
 $$;
@@ -188,13 +192,14 @@ begin
   select * into invitation from public.federation_invitations
   where id = nullif(new.raw_user_meta_data->>'invitation_id', '')::uuid
     and lower(email) = lower(new.email) and accepted_at is null and expires_at > now();
-  insert into public.profiles (id, federation_id, full_name, email, role)
+  insert into public.profiles (id, federation_id, full_name, email, role, status)
   values (
     new.id,
     invitation.federation_id,
     coalesce(new.email, 'Nouvel utilisateur'),
     new.email,
-    coalesce(invitation.role, 'admin')
+    coalesce(invitation.role, 'admin'),
+    case when invitation.id is null then 'actif'::public.profile_status else 'inactif'::public.profile_status end
   )
   on conflict (id) do update set
     email = excluded.email;
@@ -206,3 +211,16 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute procedure public.handle_new_user();
+
+insert into public.federation_members (federation_id, full_name, role, email, status, sport, phone)
+select profile.federation_id, profile.full_name, profile.role, profile.email, profile.status, profile.sport, profile.phone
+from public.profiles profile
+where profile.federation_id is not null
+  and profile.role <> 'admin'
+  and profile.status = 'actif'
+  and not exists (
+    select 1
+    from public.federation_members member
+    where member.federation_id = profile.federation_id
+      and lower(coalesce(member.email, '')) = lower(coalesce(profile.email, ''))
+  );

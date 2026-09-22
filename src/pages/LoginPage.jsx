@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Shield, UserPlus } from 'lucide-react'
-import { getFederationForCurrentUser } from '../lib/federationApi'
+import { getCurrentProfile, getFederationForCurrentUser } from '../lib/federationApi'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 function LoginPage() {
@@ -30,6 +30,18 @@ function LoginPage() {
     setIsSubmitting(false)
     if (error) {
       setFormError(error.message)
+      return
+    }
+
+    const profileResult = await getCurrentProfile()
+    if (profileResult.error) {
+      setFormError(profileResult.error.message)
+      return
+    }
+
+    if (profileResult.data?.status === 'inactif') {
+      await supabase.auth.signOut()
+      setFormError('Votre accès est bloqué jusqu’à l’activation de votre invitation.')
       return
     }
 

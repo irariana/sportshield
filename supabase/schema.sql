@@ -84,7 +84,9 @@ stable
 security definer
 set search_path = public
 as $$
-  select federation_id from public.profiles where id = auth.uid();
+  select federation_id
+  from public.profiles
+  where id = auth.uid() and status = 'actif';
 $$;
 
 create or replace function public.is_current_user_admin()
@@ -221,7 +223,7 @@ begin
   end if;
 
   update public.profiles
-  set full_name = nullif(trim(member_name), ''), sport = nullif(trim(member_sport), ''), phone = nullif(trim(member_phone), ''), updated_at = now()
+  set full_name = nullif(trim(member_name), ''), sport = nullif(trim(member_sport), ''), phone = nullif(trim(member_phone), ''), status = 'actif', updated_at = now()
   where id = auth.uid();
 
   insert into public.federation_members (federation_id, full_name, role, email, sport, phone, status)
@@ -234,6 +236,8 @@ begin
     nullif(trim(member_phone), ''),
     'actif'
   );
+  insert into public.federation_members (federation_id, full_name, role, email, status, sport, phone)
+  values (invitation.federation_id, nullif(trim(member_name), ''), invitation.role, invitation.email, 'actif', nullif(trim(member_sport), ''), nullif(trim(member_phone), ''));
 
   update public.federation_invitations
   set accepted_at = now()
@@ -256,13 +260,14 @@ begin
     and accepted_at is null
     and expires_at > now();
 
-  insert into public.profiles (id, federation_id, full_name, email, role)
+  insert into public.profiles (id, federation_id, full_name, email, role, status)
   values (
     new.id,
     invitation.federation_id,
     coalesce(new.email, 'Nouvel utilisateur'),
     new.email,
-    coalesce(invitation.role, 'admin')
+    coalesce(invitation.role, 'admin'),
+    case when invitation.id is null then 'actif'::public.profile_status else 'inactif'::public.profile_status end
   )
   on conflict (id) do update set
     email = excluded.email;
