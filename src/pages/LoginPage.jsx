@@ -51,7 +51,11 @@ function LoginPage() {
       return
     }
 
-    navigate(federationResult.data ? '/federation' : '/federation/setup')
+    if (profileResult.data?.role === 'sportif') {
+      navigate('/athlete')
+    } else {
+      navigate(federationResult.data ? '/federation' : '/federation/setup')
+    }
   }
 
   async function handleRegistrationSubmit(event) {
@@ -240,7 +244,6 @@ function LoginPage() {
                         id="email"
                         name="email"
                         type="email"
-                        defaultValue="admin@sportshield.fr"
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100"
                       />
                     </div>
@@ -253,7 +256,6 @@ function LoginPage() {
                         id="password"
                         name="password"
                         type="password"
-                        defaultValue="********"
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100"
                       />
                     </div>

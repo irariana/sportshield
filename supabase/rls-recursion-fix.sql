@@ -177,6 +177,10 @@ begin
   update public.profiles set full_name = nullif(trim(member_name), ''), sport = nullif(trim(member_sport), ''), phone = nullif(trim(member_phone), ''), status = 'actif', updated_at = now() where id = auth.uid();
   insert into public.federation_members (federation_id, full_name, role, email, status, sport, phone)
   values (invitation.federation_id, nullif(trim(member_name), ''), invitation.role, invitation.email, 'actif', nullif(trim(member_sport), ''), nullif(trim(member_phone), ''));
+  if invitation.role = 'sportif' then
+    execute 'insert into public.athlete_profiles (profile_id, federation_id, discipline) values ($1, $2, $3) on conflict (profile_id) do update set federation_id = excluded.federation_id, discipline = excluded.discipline, updated_at = now()'
+      using auth.uid(), invitation.federation_id, nullif(trim(member_sport), '');
+  end if;
   update public.federation_invitations set accepted_at = now() where id = invitation.id;
 end;
 $$;

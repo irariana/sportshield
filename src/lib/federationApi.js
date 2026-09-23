@@ -83,8 +83,8 @@ export async function getFederationMembers() {
   if (profileResult.error || !profileResult.data?.federation_id) return profileResult
 
   return supabase
-    .from('federation_members')
-    .select('*')
+    .from('profiles')
+    .select('id, federation_id, full_name, role, email, status, sport, phone, created_at, updated_at')
     .eq('federation_id', profileResult.data.federation_id)
     .order('created_at', { ascending: false })
 }
@@ -102,5 +102,20 @@ export async function getFederationInvitations() {
 }
 
 export async function inviteFederationMember(member) {
-  return supabase.functions.invoke('invite-member', { body: member })
+  const result = await supabase.functions.invoke('invite-member', { body: member })
+  if (!result.error) return result
+
+  let message = result.error.message
+  const response = result.error.context
+  if (response) {
+    const status = response.status
+    try {
+      const payload = await response.clone().json()
+      message = payload?.error || payload?.message || message
+    } catch {
+      // Some gateway errors return an empty or non-JSON response body.
+    }
+    if (message === result.error.message && status) message = `${message} (HTTP ${status})`
+  }
+  return { ...result, error: { ...result.error, message } }
 }

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Building2, Database, LogOut, MailPlus, Plus, Settings, Shield, Users, Watch } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getAuthenticatedUser, getCurrentProfile, getFederationForCurrentUser, getFederationInvitations, getFederationMembers, inviteFederationMember } from '../lib/federationApi'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import AthleteDashboardPage from './AthleteDashboardPage'
+import FederationShell from '../components/FederationShell'
 
 const sections = [
   { label: 'Vue d’ensemble', icon: Building2 },
@@ -15,13 +16,15 @@ const sections = [
 
 const fieldClass = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100'
 
-function FederationWorkspacePage() {
+function LegacyFederationWorkspacePage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [account, setAccount] = useState(null)
   const [federation, setFederation] = useState(null)
   const [members, setMembers] = useState([])
   const [invitations, setInvitations] = useState([])
-  const [activeSection, setActiveSection] = useState('Vue d’ensemble')
+  const requestedSection = searchParams.get('section')
+  const [activeSection, setActiveSection] = useState(sections.some((section) => section.label === requestedSection) ? requestedSection : 'Vue d’ensemble')
   const [isLoading, setIsLoading] = useState(true)
   const [modal, setModal] = useState(null)
   const [message, setMessage] = useState('')
@@ -32,6 +35,7 @@ function FederationWorkspacePage() {
       return
     }
     setActiveSection(label)
+    navigate(`/federation?section=${encodeURIComponent(label)}`, { replace: true })
   }
 
   useEffect(() => {
@@ -167,13 +171,152 @@ function FederationWorkspacePage() {
   )
 }
 
+function FederationWorkspacePage() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [account, setAccount] = useState(null)
+  const [federation, setFederation] = useState(null)
+  const [members, setMembers] = useState([])
+  const [invitations, setInvitations] = useState([])
+  const [dataCounts, setDataCounts] = useState({ medical: 0, training: 0 })
+  const requestedSection = searchParams.get('section')
+  const [activeSection, setActiveSection] = useState(sections.some((section) => section.label === requestedSection) ? requestedSection : 'Vue d’ensemble')
+  const [isLoading, setIsLoading] = useState(true)
+  const [modal, setModal] = useState(null)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    if (sections.some((section) => section.label === requestedSection)) setActiveSection(requestedSection)
+  }, [requestedSection])
+
+  useEffect(() => {
+    let isMounted = true
+    let channel
+    const refreshInterval = window.setInterval(() => {
+      if (isMounted) loadWorkspace()
+    }, 10000)
+
+    async function loadWorkspace() {
+      if (!isSupabaseConfigured) {
+        navigate('/login', { replace: true })
+        return
+      }
+      const userResult = await getAuthenticatedUser()
+      if (userResult.error || !userResult.data?.user) {
+        navigate('/login', { replace: true })
+        return
+      }
+      const profileResult = await getCurrentProfile()
+      if (profileResult.error || profileResult.data?.status === 'inactif') {
+        await supabase.auth.signOut()
+        navigate('/login', { replace: true })
+        return
+      }
+      const federationResult = await getFederationForCurrentUser()
+      if (!federationResult.data) {
+        navigate('/federation/setup', { replace: true })
+        return
+      }
+      const [membersResult, invitationsResult, medicalResult, trainingResult] = await Promise.all([
+        getFederationMembers(),
+        getFederationInvitations(),
+        supabase.from('medical_records').select('id', { count: 'exact', head: true }).eq('federation_id', federationResult.data.id),
+        supabase.from('training_sessions').select('id', { count: 'exact', head: true }).eq('federation_id', federationResult.data.id),
+      ])
+      if (isMounted) {
+        setAccount(profileResult.data)
+        setFederation(federationResult.data)
+        setMembers(membersResult.data ?? [])
+        setInvitations(invitationsResult.data ?? [])
+        setDataCounts({ medical: medicalResult.count || 0, training: trainingResult.count || 0 })
+        if (membersResult.error || invitationsResult.error || medicalResult.error || trainingResult.error) setMessage(membersResult.error?.message || invitationsResult.error?.message || medicalResult.error?.message || trainingResult.error?.message || 'Impossible de charger les données.')
+        setIsLoading(false)
+      }
+
+      const refresh = () => { if (isMounted) loadWorkspace() }
+      if (!channel) {
+        channel = supabase.channel(`federation-workspace-${federationResult.data.id}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'federation_members', filter: `federation_id=eq.${federationResult.data.id}` }, refresh)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'federation_invitations', filter: `federation_id=eq.${federationResult.data.id}` }, refresh)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `federation_id=eq.${federationResult.data.id}` }, refresh)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'athlete_profiles', filter: `federation_id=eq.${federationResult.data.id}` }, refresh)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'coach_athlete_assignments', filter: `federation_id=eq.${federationResult.data.id}` }, refresh)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'medical_records', filter: `federation_id=eq.${federationResult.data.id}` }, refresh)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'training_sessions', filter: `federation_id=eq.${federationResult.data.id}` }, refresh)
+          .subscribe()
+      }
+    }
+
+    loadWorkspace()
+    return () => { isMounted = false; window.clearInterval(refreshInterval); if (channel) supabase.removeChannel(channel) }
+  }, [navigate])
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    navigate('/login', { replace: true })
+  }
+
+  function handleSectionChange(label) {
+    if (label === 'Sportifs') {
+      navigate('/federation/athletes')
+      return
+    }
+    setActiveSection(label)
+    navigate(`/federation?section=${encodeURIComponent(label)}`, { replace: true })
+  }
+
+  async function handleAddMember(event) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const result = await inviteFederationMember({ email: data.get('email'), role: 'sportif', full_name: data.get('full_name'), sport: data.get('sport') })
+    if (result.error || result.data?.error) {
+      setMessage(result.data?.error || result.error?.message || 'Impossible d’envoyer l’invitation.')
+      return
+    }
+    setModal(null)
+    setMessage('Invitation envoyée au sportif.')
+  }
+
+  async function handleInvite(event) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const result = await inviteFederationMember({ email: data.get('email'), role: data.get('role') })
+    if (result.error || result.data?.error) {
+      setMessage(result.data?.error || result.error?.message || 'Impossible d’envoyer l’invitation.')
+      return
+    }
+    setModal(null)
+    setMessage('Invitation envoyée.')
+  }
+
+  if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">Chargement de votre fédération...</div>
+  if (account?.role !== 'admin') return account?.role === 'sportif' ? <AthleteDashboardPage account={account} federation={federation} onLogout={handleLogout} /> : <MemberWorkspace account={account} federation={federation} onLogout={handleLogout} />
+
+  const counts = {
+    sportifs: members.filter((member) => member.role === 'sportif').length,
+    utilisateurs: members.filter((member) => member.role !== 'sportif').length,
+  }
+  const sectionMembers = activeSection === 'Sportifs' ? members.filter((member) => member.role === 'sportif') : activeSection === 'Utilisateurs' ? members.filter((member) => member.role !== 'sportif') : []
+  const sectionInvitations = activeSection === 'Sportifs' ? invitations.filter((invitation) => invitation.role === 'sportif') : activeSection === 'Utilisateurs' ? invitations.filter((invitation) => invitation.role !== 'sportif') : []
+
+  return <FederationShell account={account} federation={federation} activeSection={activeSection} onSectionChange={handleSectionChange} onLogout={handleLogout}>
+    {message && <p className="mb-5 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-700">{message}</p>}
+    {activeSection === 'Vue d’ensemble' ? <Overview federation={federation} counts={counts} dataCounts={dataCounts} onConfigure={() => navigate('/federation/setup')} /> : <EmptySection title={activeSection} members={sectionMembers} invitations={sectionInvitations} onAdd={activeSection === 'Sportifs' ? () => setModal('member') : undefined} onInvite={activeSection === 'Utilisateurs' ? () => setModal('invite') : undefined} />}
+    {modal === 'member' && <MemberModal onSubmit={handleAddMember} onClose={() => setModal(null)} />}
+    {modal === 'invite' && <InviteModal onSubmit={handleInvite} onClose={() => setModal(null)} />}
+  </FederationShell>
+}
+
+void LegacyFederationWorkspacePage
+
 function MemberWorkspace({ account, federation, onLogout }) {
   const roleLabels = { medecin: 'Médecin', entraineur: 'Entraîneur', sportif: 'Sportif' }
   return <div className="min-h-screen bg-slate-100 text-slate-800"><header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-8"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><Shield className="h-5 w-5" /></div><div><p className="font-semibold text-slate-900">{federation.name}</p><p className="text-xs text-slate-500">Espace {roleLabels[account.role] || account.role}</p></div></div><button type="button" onClick={onLogout} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-900" aria-label="Déconnexion"><LogOut className="h-4 w-4" /></button></header><main className="mx-auto max-w-4xl p-5 sm:p-8"><section className="rounded-3xl bg-slate-950 p-7 text-white shadow-xl shadow-slate-300/40 sm:p-10"><p className="text-sm font-medium text-sky-300">Accès membre</p><h1 className="mt-3 text-3xl font-semibold">Bienvenue, {account.full_name}</h1><p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300">Vous êtes connecté à {federation.name} avec les permissions de votre rôle. Les fonctions d’administration restent réservées à l’administrateur de la fédération.</p></section><section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6"><p className="text-sm font-medium uppercase tracking-[0.16em] text-sky-600">Votre rôle</p><p className="mt-3 text-xl font-semibold text-slate-900">{roleLabels[account.role] || account.role}</p><p className="mt-2 text-sm text-slate-500">Vos outils et données disponibles seront adaptés à ce rôle.</p></section></main></div>
 }
 
-function Overview({ federation, counts, onConfigure }) {
-  return <div className="space-y-7"><section className="rounded-3xl bg-slate-950 p-7 text-white shadow-xl shadow-slate-300/40 sm:p-9"><p className="flex items-center gap-2 text-sm font-medium text-sky-300"><Building2 className="h-4 w-4" />{federation.country}</p><h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{federation.name}</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Votre espace est créé. Vous pouvez maintenant centraliser les membres, sportifs, capteurs et données de cette fédération.</p><button type="button" onClick={onConfigure} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-sky-50"><Settings className="h-4 w-4" /> Modifier la fédération</button></section><section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[['Sportifs', counts.sportifs, Users], ['Utilisateurs', counts.utilisateurs, Shield], ['Capteurs', 0, Watch], ['Données', 0, Database]].map(([label, value, Icon]) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><p className="text-sm text-slate-500">{label}</p><Icon className="h-4 w-4 text-sky-600" /></div><p className="mt-5 text-3xl font-semibold text-slate-900">{value}</p><p className="mt-2 text-xs text-slate-400">Aucune donnée fictive</p></div>)}</section><section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center"><Database className="mx-auto h-8 w-8 text-slate-300" /><h3 className="mt-4 text-lg font-semibold text-slate-800">Votre espace métier est prêt</h3><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">Les tableaux de gestion seront alimentés uniquement par les membres et les données que vous ajouterez.</p></section></div>
+function Overview({ federation, counts, dataCounts, onConfigure }) {
+  const cards = [['Sportifs', counts.sportifs, Users], ['Utilisateurs', counts.utilisateurs, Shield], ['Visites médicales', dataCounts.medical, Database], ['Séances d’entraînement', dataCounts.training, Watch]]
+  return <div className="space-y-7"><section className="rounded-3xl bg-slate-950 p-7 text-white shadow-xl shadow-slate-300/40 sm:p-9"><p className="flex items-center gap-2 text-sm font-medium text-sky-300"><Building2 className="h-4 w-4" />{federation.country}</p><h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{federation.name}</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Votre espace est connecté aux membres, aux sportifs, au suivi médical et aux séances enregistrées.</p><button type="button" onClick={onConfigure} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-sky-50"><Settings className="h-4 w-4" /> Modifier la fédération</button></section><section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{cards.map(([label, value, Icon]) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><p className="text-sm text-slate-500">{label}</p><Icon className="h-4 w-4 text-sky-600" /></div><p className="mt-5 text-3xl font-semibold text-slate-900">{value}</p><p className="mt-2 text-xs text-slate-400">Donnée Supabase actualisée</p></div>)}</section></div>
 }
 
 function EmptySection({ title, members, invitations, onAdd, onInvite }) {
@@ -185,7 +328,7 @@ function MemberModal({ onSubmit, onClose }) {
 }
 
 function InviteModal({ onSubmit, onClose }) {
-  return <Modal title="Inviter un membre" onClose={onClose}><form onSubmit={onSubmit} className="space-y-4"><p className="text-sm text-slate-500">La personne recevra un lien valable 7 jours et renseignera elle-même son profil et son mot de passe.</p><input name="email" type="email" required placeholder="Email professionnel" className={fieldClass} /><select name="role" required className={fieldClass}><option value="medecin">Médecin</option><option value="entraineur">Entraîneur</option><option value="sportif">Sportif avec compte</option></select><ModalActions submitLabel="Envoyer l’invitation" /></form></Modal>
+  return <Modal title="Inviter un membre" onClose={onClose}><form onSubmit={onSubmit} className="space-y-4"><p className="text-sm text-slate-500">La personne recevra un lien valable 7 jours et renseignera elle-même son profil et son mot de passe.</p><input name="email" type="email" required placeholder="Email professionnel" className={fieldClass} /><select name="role" required className={fieldClass}><option value="medecin">Médecin</option><option value="entraineur">Entraîneur</option></select><ModalActions submitLabel="Envoyer l’invitation" /></form></Modal>
 }
 
 function Modal({ title, onClose, children }) { return <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/60 px-4"><div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><h3 className="text-xl font-semibold text-slate-900">{title}</h3><button type="button" onClick={onClose} className="text-sm text-slate-500 hover:text-slate-900">Fermer</button></div><div className="mt-5">{children}</div></div></div> }

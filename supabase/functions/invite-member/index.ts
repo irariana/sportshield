@@ -38,6 +38,10 @@ Deno.serve(async (request) => {
     const role = String(body.role ?? '')
     const fullName = String(body.full_name ?? '').trim()
     const sport = String(body.sport ?? '').trim()
+    const birthDate = String(body.birth_date ?? '').trim()
+    const discipline = String(body.discipline ?? '').trim()
+    const club = String(body.club ?? '').trim()
+    const athleteStatus = String(body.athlete_status ?? '').trim()
 
     if (!email || !email.includes('@') || !allowedRoles.has(role)) {
       return json({ error: 'Email ou role invalide.' }, 400)
@@ -64,14 +68,50 @@ Deno.serve(async (request) => {
       return json({ error: `Création de l'invitation impossible : ${invitationError.message}` }, 400)
     }
 
-    const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      redirectTo,
-      data: {
-        invitation_id: invitation.id,
-        full_name: fullName,
-        sport,
-      },
-    })
+    const invitationMetadata = {
+      invitation_id: invitation.id,
+      full_name: fullName,
+      sport,
+      birth_date: birthDate,
+      discipline,
+      club,
+      athlete_status: athleteStatus,
+      role,
+    }
+
+    const existingUserResult = await findUserByEmail(adminClient, email)
+    if (existingUserResult.error) {
+      await adminClient.from('federation_invitations').delete().eq('id', invitation.id)
+      return json({ error: `Recherche du compte impossible : ${existingUserResult.error}` }, 400)
+    }
+
+    let inviteError
+    if (existingUserResult.user) {
+      const existingUser = existingUserResult.user
+      const { data: existingProfile } = await adminClient
+        .from('profiles')
+        .select('federation_id')
+        .eq('id', existingUser.id)
+        .maybeSingle()
+
+      if (existingProfile?.federation_id && existingProfile.federation_id !== profile.federation_id) {
+        await adminClient.from('federation_invitations').delete().eq('id', invitation.id)
+        return json({ error: 'Cette adresse est déjà rattachée à une autre fédération.' }, 409)
+      }
+
+      const { error: metadataError } = await adminClient.auth.admin.updateUserById(existingUser.id, { data: invitationMetadata })
+      if (metadataError) inviteError = metadataError
+      else {
+        const accessResult = await adminClient.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: redirectTo },
+        })
+        inviteError = accessResult.error
+      }
+    } else {
+      const result = await adminClient.auth.admin.inviteUserByEmail(email, { redirectTo, data: invitationMetadata })
+      inviteError = result.error
+    }
 
     if (inviteError) {
       console.error('invite-member: email delivery failed', inviteError)
@@ -90,4 +130,16 @@ function json(payload: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
+}
+
+async function findUserByEmail(adminClient: ReturnType<typeof createClient>, email: string) {
+  for (let page = 1; page <= 10; page += 1) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 })
+    if (error) return { user: null, error: error.message }
+    if (!data) return { user: null, error: 'Réponse vide de Supabase Auth.' }
+    const user = data.users.find((candidate) => candidate.email?.toLowerCase() === email)
+    if (user) return { user, error: null }
+    if (data.users.length < 1000) break
+  }
+  return { user: null, error: null }
 }
