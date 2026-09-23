@@ -67,7 +67,7 @@ begin
   select * into invitation
   from public.federation_invitations
   where id = invitation_id
-    and lower(email) = lower(auth.jwt()->>'email')
+    and lower(email) = lower((select email from auth.users where id = auth.uid()))
     and accepted_at is null
     and expires_at > now()
   for update;
@@ -90,8 +90,8 @@ begin
   values (
     auth.uid(),
     invitation.federation_id,
-    coalesce(nullif(trim(member_name), ''), auth.jwt()->>'email'),
-    lower(auth.jwt()->>'email'),
+    coalesce(nullif(trim(member_name), ''), (select email from auth.users where id = auth.uid())),
+    lower((select email from auth.users where id = auth.uid())),
     invitation.role,
     'actif',
     nullif(trim(member_sport), '')
@@ -106,7 +106,7 @@ begin
     updated_at = now();
 
   insert into public.federation_members (federation_id, full_name, role, email, status, sport, phone)
-  values (invitation.federation_id, coalesce(nullif(trim(member_name), ''), auth.jwt()->>'email'), invitation.role, lower(auth.jwt()->>'email'), 'actif', nullif(trim(member_sport), ''), nullif(trim(member_phone), ''));
+  values (invitation.federation_id, coalesce(nullif(trim(member_name), ''), (select email from auth.users where id = auth.uid())), invitation.role, lower((select email from auth.users where id = auth.uid())), 'actif', nullif(trim(member_sport), ''), nullif(trim(member_phone), ''));
 
   if invitation.role = 'sportif' then
     insert into public.athlete_profiles (profile_id, federation_id, birth_date, discipline, club, athlete_status)

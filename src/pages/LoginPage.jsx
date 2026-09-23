@@ -76,7 +76,7 @@ function LoginPage() {
       return
     }
 
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: formData.get('admin-email'),
       password: formData.get('admin-password'),
       options: {
@@ -90,6 +90,11 @@ function LoginPage() {
     setIsSubmitting(false)
     if (error) {
       setFormError(error.message)
+      return
+    }
+
+    if (!signUpData.user || signUpData.user.identities?.length === 0) {
+      setFormError('Un compte existe déjà avec cette adresse email. Utilisez la connexion ou le lien d’invitation reçu.')
       return
     }
 

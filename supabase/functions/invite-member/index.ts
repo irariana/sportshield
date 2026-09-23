@@ -100,6 +100,19 @@ Deno.serve(async (request) => {
         return json({ error: 'Cette adresse est déjà rattachée à une autre fédération.' }, 409)
       }
 
+      if (existingProfile?.federation_id === profile.federation_id) {
+        const { data: activeMember } = await adminClient
+          .from('profiles')
+          .select('role, status')
+          .eq('id', existingUser.id)
+          .eq('status', 'actif')
+          .maybeSingle()
+        if (activeMember) {
+          await adminClient.from('federation_invitations').delete().eq('id', invitation.id)
+          return json({ error: 'Cette adresse possède déjà un compte actif dans cette fédération.' }, 409)
+        }
+      }
+
       const { error: metadataError } = await adminClient.auth.admin.updateUserById(existingUser.id, { data: invitationMetadata })
       if (metadataError) inviteError = metadataError
       else {
