@@ -13,6 +13,7 @@ function InvitePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState('')
+  const [invitationId, setInvitationId] = useState('')
 
   useEffect(() => {
     async function loadInvitation() {
@@ -29,9 +30,18 @@ function InvitePage() {
       if (code) await supabase.auth.exchangeCodeForSession(code)
       const { data, error } = await supabase.auth.getSession()
       if (error || !data.session?.user) { setMessage('Ce lien d’invitation est invalide ou a expiré.'); setIsLoading(false); return }
-      const invitedRole = data.session.user.user_metadata?.role
-      if (!invitedRole || !roleLabels[invitedRole]) setMessage('Cette invitation est invalide ou ne contient pas de rôle.')
-      else { setUser(data.session.user); setProfile({ role: invitedRole }) }
+      const hashQuery = window.location.hash.split('?')[1] || ''
+      const queryInvitationId = new URLSearchParams(hashQuery).get('invitation_id')
+      const metadata = data.session.user.user_metadata || {}
+      const resolvedInvitationId = metadata.invitation_id || queryInvitationId
+      const metadataRole = metadata.role
+      let invitedRole = metadataRole
+      if (!invitedRole && resolvedInvitationId) {
+        const contextResult = await supabase.rpc('get_federation_invitation_context', { invitation_id: resolvedInvitationId })
+        invitedRole = contextResult.data?.[0]?.role
+      }
+      if (!invitedRole || !roleLabels[invitedRole] || !resolvedInvitationId) setMessage('Cette invitation est invalide ou ne contient pas de rôle.')
+      else { setUser(data.session.user); setProfile({ role: invitedRole }); setInvitationId(resolvedInvitationId) }
       setIsLoading(false)
     }
     loadInvitation()
@@ -46,7 +56,7 @@ function InvitePage() {
     const passwordResult = await supabase.auth.updateUser({ password: data.get('password') })
     if (passwordResult.error) { setMessage(passwordResult.error.message); setIsSubmitting(false); return }
     const { error } = await supabase.rpc('accept_federation_invitation', {
-      invitation_id: user.user_metadata?.invitation_id,
+      invitation_id: invitationId,
       member_name: data.get('full-name'), member_sport: data.get('sport') || null, member_phone: data.get('phone') || null,
       member_birth_date: data.get('birth-date') || null, member_discipline: data.get('discipline') || null,
       member_club: data.get('club') || null, member_athlete_status: data.get('athlete-status') || null,

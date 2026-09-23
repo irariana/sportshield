@@ -48,8 +48,6 @@ Deno.serve(async (request) => {
     }
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    const appUrl = Deno.env.get('APP_URL')?.replace(/\/$/, '')
-    const redirectTo = appUrl ? `${appUrl}/#/invite` : undefined
     console.log('invite-member: creating invitation', { email, role, federationId: profile.federation_id })
     const { data: invitation, error: invitationError } = await adminClient
       .from('federation_invitations')
@@ -67,6 +65,9 @@ Deno.serve(async (request) => {
       console.error('invite-member: invitation insert failed', invitationError)
       return json({ error: `Création de l'invitation impossible : ${invitationError.message}` }, 400)
     }
+
+    const appUrl = Deno.env.get('APP_URL')?.replace(/\/$/, '')
+    const redirectTo = appUrl ? `${appUrl}/#/invite?invitation_id=${invitation.id}` : undefined
 
     const invitationMetadata = {
       invitation_id: invitation.id,
