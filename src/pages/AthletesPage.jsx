@@ -160,7 +160,7 @@ function AthletesPage() {
 
   const assignmentAthlete = athletes.find((athlete) => athlete.id === assignmentAthleteId)
   if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">Chargement des sportifs...</div>
-  if (loadError) return <div className="flex min-h-screen items-center justify-center bg-slate-100 px-5 text-sm text-rose-700">{loadError}</div>
+  if (loadError || !account?.federation_id) return <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-100 px-5 text-center text-sm text-rose-700"><p>{loadError || 'Votre compte n’est pas encore rattaché à une fédération.'}</p><button type="button" onClick={async () => { await supabase.auth.signOut(); navigate('/login', { replace: true }) }} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white">Retour à la connexion</button></div>
   const handleSectionChange = (label) => {
     const paths = { 'Vue d’ensemble': '/federation', Sportifs: '/federation/athletes', Utilisateurs: '/federation?section=Utilisateurs', Capteurs: '/federation?section=Capteurs', Données: '/federation?section=Données' }
     navigate(paths[label])

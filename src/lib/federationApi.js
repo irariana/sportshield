@@ -7,16 +7,7 @@ export async function getCurrentProfile() {
   if (authError || !authData.user) return { data: null, error: authError }
 
   const profileResult = await supabase.from('profiles').select('*').eq('id', authData.user.id).maybeSingle()
-  if (profileResult.error || profileResult.data) return profileResult
-
-  const profile = {
-    id: authData.user.id,
-    full_name: authData.user.user_metadata?.full_name || authData.user.email || 'Administrateur',
-    email: authData.user.email,
-    role: 'admin',
-  }
-
-  return supabase.from('profiles').upsert(profile, { onConflict: 'id' }).select().single()
+  return profileResult
 }
 
 export async function getFederationForCurrentUser() {

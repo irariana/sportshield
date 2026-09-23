@@ -18,7 +18,10 @@ declare
 begin
   select * into invitation
   from public.federation_invitations
-  where id = nullif(new.raw_user_meta_data->>'invitation_id', '')::uuid
+  where (
+      id = nullif(new.raw_user_meta_data->>'invitation_id', '')::uuid
+      or lower(email) = lower(new.email)
+    )
     and lower(email) = lower(new.email)
     and accepted_at is null
     and expires_at > now();

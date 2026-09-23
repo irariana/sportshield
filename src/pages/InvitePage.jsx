@@ -33,12 +33,17 @@ function InvitePage() {
       const hashQuery = window.location.hash.split('?')[1] || ''
       const queryInvitationId = new URLSearchParams(hashQuery).get('invitation_id')
       const metadata = data.session.user.user_metadata || {}
-      const resolvedInvitationId = metadata.invitation_id || queryInvitationId
+      let resolvedInvitationId = metadata.invitation_id || queryInvitationId
       const metadataRole = metadata.role
       let invitedRole = metadataRole
       if (!invitedRole && resolvedInvitationId) {
         const contextResult = await supabase.rpc('get_federation_invitation_context', { invitation_id: resolvedInvitationId })
         invitedRole = contextResult.data?.[0]?.role
+      }
+      if (!invitedRole || !resolvedInvitationId) {
+        const contextResult = await supabase.rpc('get_current_federation_invitation_context')
+        invitedRole = invitedRole || contextResult.data?.[0]?.role
+        if (!resolvedInvitationId) resolvedInvitationId = contextResult.data?.[0]?.id
       }
       if (!invitedRole || !roleLabels[invitedRole] || !resolvedInvitationId) setMessage('Cette invitation est invalide ou ne contient pas de rôle.')
       else { setUser(data.session.user); setProfile({ role: invitedRole }); setInvitationId(resolvedInvitationId) }
