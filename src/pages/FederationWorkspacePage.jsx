@@ -185,6 +185,7 @@ function FederationWorkspacePage() {
   const [modal, setModal] = useState(null)
   const [message, setMessage] = useState('')
   const [deactivatingMemberId, setDeactivatingMemberId] = useState(null)
+  const [memberToDeactivate, setMemberToDeactivate] = useState(null)
 
   useEffect(() => {
     if (sections.some((section) => section.label === requestedSection)) setActiveSection(requestedSection)
@@ -290,19 +291,37 @@ function FederationWorkspacePage() {
     setMessage('Invitation envoyée.')
   }
 
-  async function handleDeactivateMember(member) {
-    if (!window.confirm(`Désactiver le compte de ${member.full_name} ? Ses sessions seront révoquées et ses données conservées.`)) return
+  function handleDeactivateMember(member) {
+    setMemberToDeactivate(member)
+    setModal('deactivate')
+  }
 
+  async function confirmDeactivateMember() {
+    const member = memberToDeactivate
+    if (!member) return
     setDeactivatingMemberId(member.id)
     setMessage('')
-    const result = await deactivateFederationMember(member.id)
+    let result
+    try {
+      result = await deactivateFederationMember(member.id)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Impossible de désactiver ce compte.')
+      setModal(null)
+      setMemberToDeactivate(null)
+      setDeactivatingMemberId(null)
+      return
+    }
     setDeactivatingMemberId(null)
     if (result.error || result.data?.error) {
       setMessage(result.data?.error || result.error?.message || 'Impossible de désactiver ce compte.')
+      setModal(null)
+      setMemberToDeactivate(null)
       return
     }
 
     setMembers((current) => current.map((item) => item.id === member.id ? { ...item, status: 'inactif' } : item))
+    setModal(null)
+    setMemberToDeactivate(null)
     setMessage(`Le compte de ${member.full_name} est désactivé. Ses données historiques sont conservées.`)
   }
 
@@ -321,6 +340,7 @@ function FederationWorkspacePage() {
     {activeSection === 'Vue d’ensemble' ? <Overview federation={federation} counts={counts} dataCounts={dataCounts} onConfigure={() => navigate('/federation/setup')} /> : <EmptySection title={activeSection} members={sectionMembers} invitations={sectionInvitations} onAdd={activeSection === 'Sportifs' ? () => setModal('member') : undefined} onInvite={activeSection === 'Utilisateurs' ? () => setModal('invite') : undefined} onDeactivate={handleDeactivateMember} deactivatingMemberId={deactivatingMemberId} />}
     {modal === 'member' && <MemberModal onSubmit={handleAddMember} onClose={() => setModal(null)} />}
     {modal === 'invite' && <InviteModal onSubmit={handleInvite} onClose={() => setModal(null)} />}
+    {modal === 'deactivate' && memberToDeactivate && <DeactivateMemberModal member={memberToDeactivate} isSubmitting={deactivatingMemberId === memberToDeactivate.id} onConfirm={confirmDeactivateMember} onClose={() => { setModal(null); setMemberToDeactivate(null) }} />}
   </FederationShell>
 }
 
@@ -346,6 +366,10 @@ function MemberModal({ onSubmit, onClose }) {
 
 function InviteModal({ onSubmit, onClose }) {
   return <Modal title="Inviter un membre" onClose={onClose}><form onSubmit={onSubmit} className="space-y-4"><p className="text-sm text-slate-500">La personne recevra un lien valable 7 jours et renseignera elle-même son profil et son mot de passe.</p><input name="email" type="email" required placeholder="Email professionnel" className={fieldClass} /><select name="role" required className={fieldClass}><option value="medecin">Médecin</option><option value="entraineur">Entraîneur</option></select><ModalActions submitLabel="Envoyer l’invitation" /></form></Modal>
+}
+
+function DeactivateMemberModal({ member, isSubmitting, onConfirm, onClose }) {
+  return <Modal title="Désactiver ce compte" onClose={onClose}><div className="space-y-5"><div><p className="text-sm font-medium text-slate-800">{member.full_name}</p><p className="text-sm text-slate-500">{member.email}</p></div><p className="text-sm leading-6 text-slate-600">La connexion sera bloquée et les sessions révoquées. Les données historiques seront conservées.</p><div className="flex justify-end gap-3"><button type="button" onClick={onClose} disabled={isSubmitting} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50">Annuler</button><button type="button" onClick={onConfirm} disabled={isSubmitting} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50">{isSubmitting ? 'Désactivation...' : 'Désactiver'}</button></div></div></Modal>
 }
 
 function Modal({ title, onClose, children }) { return <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/60 px-4"><div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><h3 className="text-xl font-semibold text-slate-900">{title}</h3><button type="button" onClick={onClose} className="text-sm text-slate-500 hover:text-slate-900">Fermer</button></div><div className="mt-5">{children}</div></div></div> }
