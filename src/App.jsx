@@ -5,7 +5,7 @@ import FederationWorkspacePage from './pages/FederationWorkspacePage'
 import LoginPage from './pages/LoginPage'
 import InvitePage from './pages/InvitePage'
 import AthletesPage from './pages/AthletesPage'
-import AthleteDashboardPage from './pages/AthleteDashboardPage'
+import AthleteDashboardPage from './pages/AthleteDashboardExperience'
 import { getAuthenticatedUser, getCurrentProfile, getFederationForCurrentUser } from './lib/federationApi'
 import { supabase } from './lib/supabase'
 

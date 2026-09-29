@@ -3,7 +3,7 @@ import { Building2, Database, LogOut, MailPlus, Plus, Settings, Shield, Users, W
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getAuthenticatedUser, getCurrentProfile, getFederationForCurrentUser, getFederationInvitations, getFederationMembers, inviteFederationMember } from '../lib/federationApi'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
-import AthleteDashboardPage from './AthleteDashboardPage'
+import AthleteDashboardPage from './AthleteDashboardExperience'
 import FederationShell from '../components/FederationShell'
 
 const sections = [
