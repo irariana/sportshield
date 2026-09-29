@@ -42,7 +42,7 @@ function AthleteRoute() {
       }
 
       const profileResult = await getCurrentProfile()
-      if (profileResult.error || profileResult.data?.role !== 'sportif') {
+      if (profileResult.error || profileResult.data?.status === 'inactif' || profileResult.data?.role !== 'sportif') {
         navigate('/federation', { replace: true })
         return
       }

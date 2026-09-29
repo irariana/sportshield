@@ -110,3 +110,7 @@ export async function inviteFederationMember(member) {
   }
   return { ...result, error: { ...result.error, message } }
 }
+
+export async function deactivateFederationMember(profileId) {
+  return supabase.functions.invoke('manage-member-access', { body: { profile_id: profileId } })
+}

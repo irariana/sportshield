@@ -41,7 +41,7 @@ function LoginPage() {
 
     if (profileResult.data?.status === 'inactif') {
       await supabase.auth.signOut()
-      setFormError('Votre accès est bloqué jusqu’à l’activation de votre invitation.')
+      setFormError('Votre compte est désactivé. Contactez l’administrateur de votre fédération.')
       return
     }
 

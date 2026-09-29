@@ -91,7 +91,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select role from public.profiles where id = auth.uid();
+  select role from public.profiles where id = auth.uid() and status = 'actif';
 $$;
 
 create or replace function public.is_assigned_coach(target_athlete_id uuid)
@@ -135,13 +135,21 @@ with check (federation_id = public.current_federation_id() and public.is_current
 drop policy if exists "Athletes create own athlete profile" on public.athlete_profiles;
 create policy "Athletes create own athlete profile"
 on public.athlete_profiles for insert
-with check (profile_id = auth.uid());
+with check (
+  profile_id = auth.uid()
+  and federation_id = public.current_federation_id()
+  and public.current_profile_role() = 'sportif'
+);
 
 drop policy if exists "Athletes update own athlete profile" on public.athlete_profiles;
 create policy "Athletes update own athlete profile"
 on public.athlete_profiles for update
-using (profile_id = auth.uid())
-with check (profile_id = auth.uid());
+using (profile_id = auth.uid() and federation_id = public.current_federation_id())
+with check (
+  profile_id = auth.uid()
+  and federation_id = public.current_federation_id()
+  and public.current_profile_role() = 'sportif'
+);
 
 -- ============================================================
 -- Policies : coach_athlete_assignments

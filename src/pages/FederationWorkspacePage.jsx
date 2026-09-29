@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Building2, Database, LogOut, MailPlus, Plus, Settings, Shield, Users, Watch } from 'lucide-react'
+import { Building2, Database, LogOut, MailPlus, Plus, Settings, Shield, UserRoundX, Users, Watch } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getAuthenticatedUser, getCurrentProfile, getFederationForCurrentUser, getFederationInvitations, getFederationMembers, inviteFederationMember } from '../lib/federationApi'
+import { deactivateFederationMember, getAuthenticatedUser, getCurrentProfile, getFederationForCurrentUser, getFederationInvitations, getFederationMembers, inviteFederationMember } from '../lib/federationApi'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import AthleteDashboardPage from './AthleteDashboardExperience'
 import FederationShell from '../components/FederationShell'
@@ -184,6 +184,7 @@ function FederationWorkspacePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [modal, setModal] = useState(null)
   const [message, setMessage] = useState('')
+  const [deactivatingMemberId, setDeactivatingMemberId] = useState(null)
 
   useEffect(() => {
     if (sections.some((section) => section.label === requestedSection)) setActiveSection(requestedSection)
@@ -289,19 +290,35 @@ function FederationWorkspacePage() {
     setMessage('Invitation envoyée.')
   }
 
+  async function handleDeactivateMember(member) {
+    if (!window.confirm(`Désactiver le compte de ${member.full_name} ? Ses sessions seront révoquées et ses données conservées.`)) return
+
+    setDeactivatingMemberId(member.id)
+    setMessage('')
+    const result = await deactivateFederationMember(member.id)
+    setDeactivatingMemberId(null)
+    if (result.error || result.data?.error) {
+      setMessage(result.data?.error || result.error?.message || 'Impossible de désactiver ce compte.')
+      return
+    }
+
+    setMembers((current) => current.map((item) => item.id === member.id ? { ...item, status: 'inactif' } : item))
+    setMessage(`Le compte de ${member.full_name} est désactivé. Ses données historiques sont conservées.`)
+  }
+
   if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">Chargement de votre fédération...</div>
   if (account?.role !== 'admin') return account?.role === 'sportif' ? <AthleteDashboardPage account={account} federation={federation} onLogout={handleLogout} /> : <MemberWorkspace account={account} federation={federation} onLogout={handleLogout} />
 
   const counts = {
     sportifs: members.filter((member) => member.role === 'sportif').length,
-    utilisateurs: members.filter((member) => member.role !== 'sportif').length,
+    utilisateurs: members.filter((member) => member.role !== 'admin').length,
   }
-  const sectionMembers = activeSection === 'Sportifs' ? members.filter((member) => member.role === 'sportif') : activeSection === 'Utilisateurs' ? members.filter((member) => member.role !== 'sportif') : []
+  const sectionMembers = activeSection === 'Sportifs' ? members.filter((member) => member.role === 'sportif') : activeSection === 'Utilisateurs' ? members.filter((member) => member.role !== 'admin') : []
   const sectionInvitations = activeSection === 'Sportifs' ? invitations.filter((invitation) => invitation.role === 'sportif') : activeSection === 'Utilisateurs' ? invitations.filter((invitation) => invitation.role !== 'sportif') : []
 
   return <FederationShell account={account} federation={federation} activeSection={activeSection} onSectionChange={handleSectionChange} onLogout={handleLogout}>
     {message && <p className="mb-5 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-700">{message}</p>}
-    {activeSection === 'Vue d’ensemble' ? <Overview federation={federation} counts={counts} dataCounts={dataCounts} onConfigure={() => navigate('/federation/setup')} /> : <EmptySection title={activeSection} members={sectionMembers} invitations={sectionInvitations} onAdd={activeSection === 'Sportifs' ? () => setModal('member') : undefined} onInvite={activeSection === 'Utilisateurs' ? () => setModal('invite') : undefined} />}
+    {activeSection === 'Vue d’ensemble' ? <Overview federation={federation} counts={counts} dataCounts={dataCounts} onConfigure={() => navigate('/federation/setup')} /> : <EmptySection title={activeSection} members={sectionMembers} invitations={sectionInvitations} onAdd={activeSection === 'Sportifs' ? () => setModal('member') : undefined} onInvite={activeSection === 'Utilisateurs' ? () => setModal('invite') : undefined} onDeactivate={handleDeactivateMember} deactivatingMemberId={deactivatingMemberId} />}
     {modal === 'member' && <MemberModal onSubmit={handleAddMember} onClose={() => setModal(null)} />}
     {modal === 'invite' && <InviteModal onSubmit={handleInvite} onClose={() => setModal(null)} />}
   </FederationShell>
@@ -319,8 +336,8 @@ function Overview({ federation, counts, dataCounts, onConfigure }) {
   return <div className="space-y-7"><section className="rounded-3xl bg-slate-950 p-7 text-white shadow-xl shadow-slate-300/40 sm:p-9"><p className="flex items-center gap-2 text-sm font-medium text-sky-300"><Building2 className="h-4 w-4" />{federation.country}</p><h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{federation.name}</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Votre espace est connecté aux membres, aux sportifs, au suivi médical et aux séances enregistrées.</p><button type="button" onClick={onConfigure} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-sky-50"><Settings className="h-4 w-4" /> Modifier la fédération</button></section><section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{cards.map(([label, value, Icon]) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><p className="text-sm text-slate-500">{label}</p><Icon className="h-4 w-4 text-sky-600" /></div><p className="mt-5 text-3xl font-semibold text-slate-900">{value}</p><p className="mt-2 text-xs text-slate-400">Donnée Supabase actualisée</p></div>)}</section></div>
 }
 
-function EmptySection({ title, members, invitations, onAdd, onInvite }) {
-  return <div className="space-y-6"><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-sm font-medium uppercase tracking-[0.2em] text-sky-600">Gestion</p><h2 className="mt-2 text-3xl font-semibold text-slate-900">{title}</h2><p className="mt-2 text-sm text-slate-500">Gérez les personnes rattachées à votre fédération.</p></div><div className="flex gap-2">{onAdd && <button type="button" onClick={onAdd} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500"><Plus className="h-4 w-4" /> Ajouter</button>}{onInvite && <button type="button" onClick={onInvite} className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 hover:bg-sky-100"><MailPlus className="h-4 w-4" /> Inviter</button>}</div></div><div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><table className="min-w-full divide-y divide-slate-200"><thead className="bg-slate-50"><tr><th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Nom / email</th><th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Rôle</th><th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Sport / état</th></tr></thead><tbody>{members.length === 0 && invitations?.length === 0 ? <tr><td colSpan="3" className="px-5 py-16 text-center text-sm text-slate-400">Aucun élément à afficher pour le moment.</td></tr> : <>{members.map((member) => <tr key={member.id}><td className="px-5 py-4"><p className="text-sm font-medium text-slate-800">{member.full_name}</p><p className="text-xs text-slate-500">{member.email}</p></td><td className="px-5 py-4 text-sm text-slate-600">{member.role}</td><td className="px-5 py-4 text-sm text-slate-600">{member.sport || 'Actif'}</td></tr>)}{invitations?.map((invitation) => <tr key={invitation.id} className="bg-amber-50/40"><td className="px-5 py-4"><p className="text-sm font-medium text-slate-800">{invitation.email}</p><p className="text-xs text-amber-700">Invitation en attente jusqu’au {new Date(invitation.expires_at).toLocaleDateString('fr-FR')}</p></td><td className="px-5 py-4 text-sm text-slate-600">{invitation.role}</td><td className="px-5 py-4 text-sm text-amber-700">En attente d’activation</td></tr>)}</>}</tbody></table></div></div>
+function EmptySection({ title, members, invitations, onAdd, onInvite, onDeactivate, deactivatingMemberId }) {
+  return <div className="space-y-6"><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-sm font-medium uppercase tracking-[0.2em] text-sky-600">Gestion</p><h2 className="mt-2 text-3xl font-semibold text-slate-900">{title}</h2><p className="mt-2 text-sm text-slate-500">Gérez les personnes rattachées à votre fédération.</p></div><div className="flex gap-2">{onAdd && <button type="button" onClick={onAdd} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500"><Plus className="h-4 w-4" /> Ajouter</button>}{onInvite && <button type="button" onClick={onInvite} className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 hover:bg-sky-100"><MailPlus className="h-4 w-4" /> Inviter</button>}</div></div><div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm"><table className="min-w-full divide-y divide-slate-200"><thead className="bg-slate-50"><tr><th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Nom / email</th><th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Rôle</th><th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Sport / état</th>{onDeactivate && <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Accès</th>}</tr></thead><tbody>{members.length === 0 && invitations?.length === 0 ? <tr><td colSpan={onDeactivate ? 4 : 3} className="px-5 py-16 text-center text-sm text-slate-400">Aucun élément à afficher pour le moment.</td></tr> : <>{members.map((member) => <tr key={member.id}><td className="px-5 py-4"><p className="text-sm font-medium text-slate-800">{member.full_name}</p><p className="text-xs text-slate-500">{member.email}</p></td><td className="px-5 py-4 text-sm text-slate-600">{member.role}</td><td className="px-5 py-4 text-sm text-slate-600">{member.status === 'inactif' ? 'Désactivé' : member.sport || 'Actif'}</td>{onDeactivate && <td className="px-5 py-4 text-right">{member.status !== 'inactif' && <button type="button" onClick={() => onDeactivate(member)} disabled={deactivatingMemberId === member.id} aria-label={`Désactiver le compte de ${member.full_name}`} className="inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50"><UserRoundX className="h-4 w-4" />{deactivatingMemberId === member.id ? 'Désactivation...' : 'Désactiver'}</button>}</td>}</tr>)}{invitations?.map((invitation) => <tr key={invitation.id} className="bg-amber-50/40"><td className="px-5 py-4"><p className="text-sm font-medium text-slate-800">{invitation.email}</p><p className="text-xs text-amber-700">Invitation en attente jusqu’au {new Date(invitation.expires_at).toLocaleDateString('fr-FR')}</p></td><td className="px-5 py-4 text-sm text-slate-600">{invitation.role}</td><td className="px-5 py-4 text-sm text-amber-700">En attente d’activation</td>{onDeactivate && <td />}</tr>)}</>}</tbody></table></div></div>
 }
 
 function MemberModal({ onSubmit, onClose }) {
