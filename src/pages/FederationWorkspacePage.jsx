@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react'
-import { Building2, Database, LogOut, MailPlus, Plus, Settings, Shield, UserRoundX, Users, Watch } from 'lucide-react'
+import { Activity, Building2, Database, LogOut, MailPlus, Plus, Settings, Shield, UserRoundX, Users, Watch } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { deactivateFederationMember, getAuthenticatedUser, getCurrentProfile, getFederationForCurrentUser, getFederationInvitations, getFederationMembers, inviteFederationMember } from '../lib/federationApi'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import AthleteDashboardPage from './AthleteDashboardExperience'
 import FederationShell from '../components/FederationShell'
+import ActivitySourcesPage from './ActivitySourcesPage'
+import { resolveFederationSports } from '../lib/sports'
 
 const sections = [
   { label: 'Vue d’ensemble', icon: Building2 },
   { label: 'Sportifs', icon: Users },
   { label: 'Utilisateurs', icon: Shield },
-  { label: 'Capteurs', icon: Watch },
+  { label: 'Sources de données', icon: Activity },
   { label: 'Données', icon: Database },
 ]
 
@@ -134,10 +136,13 @@ function LegacyFederationWorkspacePage() {
 
   if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">Chargement de votre fédération...</div>
 
+  if (account?.role === 'sportif') return <AthleteDashboardPage account={account} federation={federation} onLogout={handleLogout} />
+  if (account?.role === 'entraineur') {
+    return <FederationShell account={account} federation={federation} activeSection="Sources de données" onSectionChange={(label) => { if (label === 'Sportifs') navigate('/federation/athletes') }} onLogout={handleLogout}>
+      <ActivitySourcesPage account={account} federation={federation} />
+    </FederationShell>
+  }
   if (account?.role !== 'admin') {
-    if (account?.role === 'sportif') {
-      return <AthleteDashboardPage account={account} federation={federation} onLogout={handleLogout} />
-    }
     return <MemberWorkspace account={account} federation={federation} onLogout={handleLogout} />
   }
 
@@ -326,6 +331,12 @@ function FederationWorkspacePage() {
   }
 
   if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">Chargement de votre fédération...</div>
+  if (account?.role === 'entraineur') {
+    return <FederationShell account={account} federation={federation} activeSection="Sources de données" onSectionChange={handleSectionChange} onLogout={handleLogout}>
+      {message && <p className="mb-5 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-700">{message}</p>}
+      <ActivitySourcesPage account={account} federation={federation} />
+    </FederationShell>
+  }
   if (account?.role !== 'admin') return account?.role === 'sportif' ? <AthleteDashboardPage account={account} federation={federation} onLogout={handleLogout} /> : <MemberWorkspace account={account} federation={federation} onLogout={handleLogout} />
 
   const counts = {
@@ -337,8 +348,8 @@ function FederationWorkspacePage() {
 
   return <FederationShell account={account} federation={federation} activeSection={activeSection} onSectionChange={handleSectionChange} onLogout={handleLogout}>
     {message && <p className="mb-5 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-700">{message}</p>}
-    {activeSection === 'Vue d’ensemble' ? <Overview federation={federation} counts={counts} dataCounts={dataCounts} onConfigure={() => navigate('/federation/setup')} /> : <EmptySection title={activeSection} members={sectionMembers} invitations={sectionInvitations} onAdd={activeSection === 'Sportifs' ? () => setModal('member') : undefined} onInvite={activeSection === 'Utilisateurs' ? () => setModal('invite') : undefined} onDeactivate={handleDeactivateMember} deactivatingMemberId={deactivatingMemberId} />}
-    {modal === 'member' && <MemberModal onSubmit={handleAddMember} onClose={() => setModal(null)} />}
+    {activeSection === 'Vue d’ensemble' ? <Overview federation={federation} counts={counts} dataCounts={dataCounts} onConfigure={() => navigate('/federation/setup')} /> : activeSection === 'Sources de données' ? <ActivitySourcesPage account={account} federation={federation} /> : <EmptySection title={activeSection} members={sectionMembers} invitations={sectionInvitations} onAdd={activeSection === 'Sportifs' ? () => setModal('member') : undefined} onInvite={activeSection === 'Utilisateurs' ? () => setModal('invite') : undefined} onDeactivate={handleDeactivateMember} deactivatingMemberId={deactivatingMemberId} />}
+    {modal === 'member' && <MemberModal sports={resolveFederationSports(federation?.sports)} onSubmit={handleAddMember} onClose={() => setModal(null)} />}
     {modal === 'invite' && <InviteModal onSubmit={handleInvite} onClose={() => setModal(null)} />}
     {modal === 'deactivate' && memberToDeactivate && <DeactivateMemberModal member={memberToDeactivate} isSubmitting={deactivatingMemberId === memberToDeactivate.id} onConfirm={confirmDeactivateMember} onClose={() => { setModal(null); setMemberToDeactivate(null) }} />}
   </FederationShell>
@@ -360,8 +371,8 @@ function EmptySection({ title, members, invitations, onAdd, onInvite, onDeactiva
   return <div className="space-y-6"><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-sm font-medium uppercase tracking-[0.2em] text-sky-600">Gestion</p><h2 className="mt-2 text-3xl font-semibold text-slate-900">{title}</h2><p className="mt-2 text-sm text-slate-500">Gérez les personnes rattachées à votre fédération.</p></div><div className="flex gap-2">{onAdd && <button type="button" onClick={onAdd} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500"><Plus className="h-4 w-4" /> Ajouter</button>}{onInvite && <button type="button" onClick={onInvite} className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 hover:bg-sky-100"><MailPlus className="h-4 w-4" /> Inviter</button>}</div></div><div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm"><table className="min-w-full divide-y divide-slate-200"><thead className="bg-slate-50"><tr><th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Nom / email</th><th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Rôle</th><th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Sport / état</th>{onDeactivate && <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Accès</th>}</tr></thead><tbody>{members.length === 0 && invitations?.length === 0 ? <tr><td colSpan={onDeactivate ? 4 : 3} className="px-5 py-16 text-center text-sm text-slate-400">Aucun élément à afficher pour le moment.</td></tr> : <>{members.map((member) => <tr key={member.id}><td className="px-5 py-4"><p className="text-sm font-medium text-slate-800">{member.full_name}</p><p className="text-xs text-slate-500">{member.email}</p></td><td className="px-5 py-4 text-sm text-slate-600">{member.role}</td><td className="px-5 py-4 text-sm text-slate-600">{member.status === 'inactif' ? 'Désactivé' : member.sport || 'Actif'}</td>{onDeactivate && <td className="px-5 py-4 text-right">{member.status !== 'inactif' && <button type="button" onClick={() => onDeactivate(member)} disabled={deactivatingMemberId === member.id} aria-label={`Désactiver le compte de ${member.full_name}`} className="inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50"><UserRoundX className="h-4 w-4" />{deactivatingMemberId === member.id ? 'Désactivation...' : 'Désactiver'}</button>}</td>}</tr>)}{invitations?.map((invitation) => <tr key={invitation.id} className="bg-amber-50/40"><td className="px-5 py-4"><p className="text-sm font-medium text-slate-800">{invitation.email}</p><p className="text-xs text-amber-700">Invitation en attente jusqu’au {new Date(invitation.expires_at).toLocaleDateString('fr-FR')}</p></td><td className="px-5 py-4 text-sm text-slate-600">{invitation.role}</td><td className="px-5 py-4 text-sm text-amber-700">En attente d’activation</td>{onDeactivate && <td />}</tr>)}</>}</tbody></table></div></div>
 }
 
-function MemberModal({ onSubmit, onClose }) {
-  return <Modal title="Ajouter un sportif" onClose={onClose}><form onSubmit={onSubmit} className="space-y-4"><input name="full_name" required placeholder="Nom complet" className={fieldClass} /><input name="email" type="email" required placeholder="Email" className={fieldClass} /><input name="sport" required placeholder="Sport" className={fieldClass} /><ModalActions /></form></Modal>
+function MemberModal({ sports = [], onSubmit, onClose }) {
+  return <Modal title="Ajouter un sportif" onClose={onClose}><form onSubmit={onSubmit} className="space-y-4"><input name="full_name" required placeholder="Nom complet" className={fieldClass} /><input name="email" type="email" required placeholder="Email" className={fieldClass} /><select name="sport" required className={fieldClass}><option value="">Sélectionner un sport</option>{resolveFederationSports(sports).map((sport) => <option key={sport} value={sport}>{sport}</option>)}</select><ModalActions /></form></Modal>
 }
 
 function InviteModal({ onSubmit, onClose }) {

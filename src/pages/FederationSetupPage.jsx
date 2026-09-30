@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { Building2, Check, ImagePlus, LogOut, Save, Trash2 } from 'lucide-react'
 import { deleteFederationForCurrentUser, getAuthenticatedUser, getFederationForCurrentUser, saveFederationForCurrentUser } from '../lib/federationApi'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { FEDERATION_SPORTS } from '../lib/sports'
 
 const emptyForm = { name: '', country: '', sports: [], logo: '' }
-const availableSports = ['Football', 'Basketball', 'Athlétisme', 'Natation', 'Rugby', 'Tennis']
 
 function FederationSetupPage() {
   const navigate = useNavigate()
@@ -80,7 +80,7 @@ function FederationSetupPage() {
   async function handleSubmit(event) {
     event.preventDefault()
     if (!form.name.trim() || !form.country.trim() || form.sports.length === 0) {
-      setMessage({ type: 'error', text: 'Renseignez le nom, le pays et au moins un sport.' })
+      setMessage({ type: 'error', text: 'Renseignez le nom, le pays et au moins une discipline.' })
       return
     }
 
@@ -140,7 +140,7 @@ function FederationSetupPage() {
           <section className="rounded-3xl bg-slate-950 p-7 text-white shadow-xl shadow-slate-300/40 sm:p-9">
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-sky-300">{isExisting ? 'Paramètres' : 'Première étape'}</p>
             <h1 className="mt-4 text-3xl font-semibold tracking-tight">{isExisting ? 'Modifiez votre espace fédération.' : 'Créez l’espace de votre fédération.'}</h1>
-            <p className="mt-4 text-sm leading-6 text-slate-300">{isExisting ? 'Les informations enregistrées servent de référence pour tous les utilisateurs et les données de votre fédération.' : 'Commencez par définir l’identité de votre fédération. Les sportifs, utilisateurs, capteurs et données seront ensuite rattachés à cet espace isolé.'}</p>
+            <p className="mt-4 text-sm leading-6 text-slate-300">{isExisting ? 'Les informations enregistrées servent de référence pour tous les utilisateurs et les données de votre fédération.' : 'Commencez par définir l’identité de votre fédération. Les sportifs, utilisateurs, sources de données et informations de suivi seront ensuite rattachés à cet espace isolé.'}</p>
             <div className="mt-10 space-y-4 text-sm text-slate-300"><p className="flex items-center gap-3"><Check className="h-4 w-4 text-sky-300" /> Un espace unique par fédération</p><p className="flex items-center gap-3"><Check className="h-4 w-4 text-sky-300" /> Données isolées par identifiant</p><p className="flex items-center gap-3"><Check className="h-4 w-4 text-sky-300" /> Informations modifiables à tout moment</p></div>
           </section>
 
@@ -150,10 +150,10 @@ function FederationSetupPage() {
 
               <div className="grid gap-6 sm:grid-cols-[150px_1fr]">
                 <div><p className="text-sm font-medium text-slate-700">Logo</p><label htmlFor="federation-logo" className="mt-3 flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-slate-400 hover:border-sky-400 hover:text-sky-600">{form.logo ? <img src={form.logo} alt="Logo de la fédération" className="h-full w-full object-contain p-3" /> : <span className="flex flex-col items-center gap-2 text-center text-xs"><ImagePlus className="h-6 w-6" /> Ajouter un logo</span>}</label><input id="federation-logo" type="file" accept="image/*" className="sr-only" onChange={handleLogoChange} /></div>
-                <div className="space-y-5"><div><label htmlFor="federation-name" className="mb-2 block text-sm font-medium text-slate-700">Nom de la fédération</label><input id="federation-name" name="name" value={form.name} onChange={handleChange} required placeholder="Ex. Fédération Française de Natation" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100" /></div><div><label htmlFor="federation-country" className="mb-2 block text-sm font-medium text-slate-700">Pays</label><input id="federation-country" name="country" value={form.country} onChange={handleChange} required placeholder="Ex. France" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100" /></div></div>
+                <div className="space-y-5"><div><label htmlFor="federation-name" className="mb-2 block text-sm font-medium text-slate-700">Nom de la fédération</label><input id="federation-name" name="name" value={form.name} onChange={handleChange} required placeholder="Ex. Fédération Française d'Athlétisme" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100" /></div><div><label htmlFor="federation-country" className="mb-2 block text-sm font-medium text-slate-700">Pays</label><input id="federation-country" name="country" value={form.country} onChange={handleChange} required placeholder="Ex. France" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100" /></div></div>
               </div>
 
-              <fieldset><legend className="text-sm font-medium text-slate-700">Sports de la fédération</legend><p className="mt-1 text-sm text-slate-500">Sélectionnez au moins une discipline.</p><div className="mt-4 grid gap-3 sm:grid-cols-2">{availableSports.map((sport) => <label key={sport} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${form.sports.includes(sport) ? 'border-sky-400 bg-sky-50 text-sky-800' : 'border-slate-200 hover:border-sky-300'}`}><input type="checkbox" checked={form.sports.includes(sport)} onChange={() => toggleSport(sport)} className="h-4 w-4 accent-sky-600" />{sport}</label>)}</div></fieldset>
+              <fieldset><legend className="text-sm font-medium text-slate-700">Sports de la fédération</legend><p className="mt-1 text-sm text-slate-500">Ces sports servent de référence dans toute l’application : invitations, profils sportifs et entraîneurs.</p><div className="mt-4 grid gap-3 sm:grid-cols-2">{FEDERATION_SPORTS.map((sport) => <label key={sport} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${form.sports.includes(sport) ? 'border-sky-400 bg-sky-50 text-sky-800' : 'border-slate-200 hover:border-sky-300'}`}><input type="checkbox" checked={form.sports.includes(sport)} onChange={() => toggleSport(sport)} className="h-4 w-4 accent-sky-600" />{sport}</label>)}</div></fieldset>
 
               {message && <p className={`rounded-xl px-4 py-3 text-sm ${message.type === 'error' ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>{message.text}</p>}
 

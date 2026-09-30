@@ -69,6 +69,14 @@ Deno.serve(async (request) => {
     const appUrl = Deno.env.get('APP_URL')?.replace(/\/$/, '')
     const redirectTo = appUrl ? `${appUrl}/#/invite?invitation_id=${invitation.id}` : undefined
 
+    // Les sports de la fédération alimentent les listes de la page d'inscription :
+    // on les embarque dans les métadonnées pour rester cohérent avec les paramètres.
+    const { data: federation } = await adminClient
+      .from('federations')
+      .select('name, sports')
+      .eq('id', profile.federation_id)
+      .maybeSingle()
+
     const invitationMetadata = {
       invitation_id: invitation.id,
       full_name: fullName,
@@ -78,6 +86,8 @@ Deno.serve(async (request) => {
       club,
       athlete_status: athleteStatus,
       role,
+      federation_name: federation?.name ?? null,
+      federation_sports: federation?.sports ?? [],
     }
 
     const existingUserResult = await findUserByEmail(adminClient, email)
