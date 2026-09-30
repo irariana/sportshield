@@ -5,4 +5,8 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   base: '/sportshield/',
   plugins: [react(), tailwindcss()],
+  build: {
+    // Clean dist/ before each build so stale bundles never pile up (and get published).
+    emptyOutDir: true,
+  },
 })
