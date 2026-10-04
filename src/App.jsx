@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage'
 import InvitePage from './pages/InvitePage'
 import AthletesPage from './pages/AthletesPage'
 import SensorSyncPage from './pages/SensorSyncPage'
+import DataTraceabilityPage from './pages/DataTraceabilityPage'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/federation/athletes/:athleteId" element={<AthletesPage />} />
         <Route path="/federation/athletes" element={<AthletesPage />} />
         <Route path="/federation/synchronization" element={<SensorSyncPage />} />
+        <Route path="/federation/traceability" element={<DataTraceabilityPage />} />
         <Route path="/federation/sync" element={<SensorSyncPage />} />
         <Route path="/federation" element={<FederationWorkspacePage />} />
         <Route path="/" element={<Navigate to="/login" replace />} />

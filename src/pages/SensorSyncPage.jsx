@@ -9,6 +9,7 @@ const sections = [
   { label: 'Utilisateurs', icon: Shield },
   { label: 'Capteurs', icon: Watch },
   { label: 'Données', icon: Database },
+  { label: 'Traçabilité', icon: Database },
 ]
 
 const initialFilters = { athlete: 'all', sensor: 'all', type: 'all', status: 'all' }
@@ -54,6 +55,14 @@ function SensorSyncPage() {
     }
     if (label === 'Sportifs') {
       navigate('/federation/athletes')
+      return
+    }
+    if (label === 'Traçabilité') {
+      navigate('/federation/traceability')
+      return
+    }
+    if (label === 'Données') {
+      navigate('/federation/synchronization')
     }
   }
 
@@ -161,15 +170,25 @@ function SensorSyncPage() {
                   <p className="text-sm font-medium text-sky-300">Synchronisation des données</p>
                   <h2 className="mt-3 text-2xl font-semibold sm:text-3xl">Dernière synchronisation : {formatDateTime(lastSyncAt)}</h2>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSync}
-                  disabled={isSyncing}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-sky-400/70"
-                >
-                  {isSyncing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
-                  {isSyncing ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
-                </button>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/federation/traceability')}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-sky-500 hover:text-white"
+                  >
+                    <Database className="h-4 w-4" />
+                    Traçabilité
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSync}
+                    disabled={isSyncing}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-sky-400/70"
+                  >
+                    {isSyncing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
+                    {isSyncing ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
+                  </button>
+                </div>
               </div>
 
               <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
