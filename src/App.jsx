@@ -4,6 +4,7 @@ import FederationWorkspacePage from './pages/FederationWorkspacePage'
 import LoginPage from './pages/LoginPage'
 import InvitePage from './pages/InvitePage'
 import AthletesPage from './pages/AthletesPage'
+import SensorSyncPage from './pages/SensorSyncPage'
 
 function App() {
   return (
@@ -14,6 +15,8 @@ function App() {
         <Route path="/federation/setup" element={<FederationSetupPage />} />
         <Route path="/federation/athletes/:athleteId" element={<AthletesPage />} />
         <Route path="/federation/athletes" element={<AthletesPage />} />
+        <Route path="/federation/synchronization" element={<SensorSyncPage />} />
+        <Route path="/federation/sync" element={<SensorSyncPage />} />
         <Route path="/federation" element={<FederationWorkspacePage />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />

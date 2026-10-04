@@ -30,6 +30,10 @@ function FederationWorkspacePage() {
       navigate('/federation/athletes')
       return
     }
+    if (label === 'Données') {
+      navigate('/federation/synchronization')
+      return
+    }
     setActiveSection(label)
   }
 
