@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, CalendarDays, ChevronRight, Edit3, History, Plus, Search, Shield, UserCog, UserRound, UsersRound, X } from 'lucide-react'
+import { ArrowLeft, CalendarDays, ChevronRight, Edit3, History, Plus, Search, Shield, UserCog, X } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { athleteStatusOptions, createMockAthlete, getMockAthletes, saveMockAthletes, sportOptions } from '../lib/athletesMock'
 import { getMockAssignmentHistory, getMockAssignments, getMockCoaches, saveMockAssignment } from '../lib/coachAssignmentsMock'

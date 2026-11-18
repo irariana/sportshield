@@ -1,16 +1,24 @@
 import { useEffect, useState } from 'react'
-import { Building2, Database, LogOut, MailPlus, Plus, Settings, Shield, Users, Watch } from 'lucide-react'
+import { Building2, Database, LogOut, MailPlus, Plus, Settings, Shield, Users, Watch, Lock, Bell, FileText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { getAuthenticatedUser, getCurrentProfile, getFederationForCurrentUser, getFederationInvitations, getFederationMembers, inviteFederationMember } from '../lib/federationApi'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import AthleteDashboardPage from './AthleteDashboardPage'
+import { SensorsPage } from './SensorsPage'
+import { ConsentsAdminPage } from './ConsentsAdminPage'
+import { GpsWindowsPage } from './GpsWindowsPage'
+import { AlertsAdminPage } from './AlertsAdminPage'
+import { DataAccessLogPage } from './DataAccessLogPage'
 
 const sections = [
   { label: 'Vue d’ensemble', icon: Building2 },
   { label: 'Sportifs', icon: Users },
   { label: 'Utilisateurs', icon: Shield },
   { label: 'Capteurs', icon: Watch },
-  { label: 'Données', icon: Database },
+  { label: 'Accords', icon: FileText },
+  { label: 'Créneaux GPS', icon: MapPin ? MapPin : Users },
+  { label: 'Alertes', icon: Bell },
+  { label: 'Journal d’accès', icon: Lock },
 ]
 
 const fieldClass = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100'
@@ -157,7 +165,21 @@ function FederationWorkspacePage() {
           <div className="p-5 sm:p-8">
             <div className="mb-6 flex gap-2 overflow-x-auto md:hidden">{sections.map(({ label }) => <button key={label} type="button" onClick={() => handleSectionChange(label)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium ${activeSection === label ? 'bg-slate-900 text-white' : 'bg-white text-slate-500'}`}>{label}</button>)}</div>
             {message && <p className="mb-5 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-700">{message}</p>}
-            {activeSection === 'Vue d’ensemble' ? <Overview federation={federation} counts={counts} onConfigure={() => navigate('/federation/setup')} /> : <EmptySection title={activeSection} members={activeSection === 'Sportifs' ? members.filter((member) => member.role === 'sportif') : activeSection === 'Utilisateurs' ? members.filter((member) => member.role !== 'sportif') : []} invitations={activeSection === 'Sportifs' ? invitations.filter((invitation) => invitation.role === 'sportif') : activeSection === 'Utilisateurs' ? invitations.filter((invitation) => invitation.role !== 'sportif') : []} onAdd={activeSection === 'Sportifs' ? () => setModal('member') : undefined} onInvite={activeSection === 'Utilisateurs' ? () => setModal('invite') : undefined} />}
+            {activeSection === 'Vue d’ensemble' ? (
+              <Overview federation={federation} counts={counts} onConfigure={() => navigate('/federation/setup')} />
+            ) : activeSection === 'Capteurs' ? (
+              <SensorsPage federation={federation} />
+            ) : activeSection === 'Accords' ? (
+              <ConsentsAdminPage federation={federation} />
+            ) : activeSection === 'Créneaux GPS' ? (
+              <GpsWindowsPage federation={federation} />
+            ) : activeSection === 'Alertes' ? (
+              <AlertsAdminPage federation={federation} />
+            ) : activeSection === 'Journal d’accès' ? (
+              <DataAccessLogPage federation={federation} />
+            ) : (
+              <EmptySection title={activeSection} members={activeSection === 'Sportifs' ? members.filter((member) => member.role === 'sportif') : activeSection === 'Utilisateurs' ? members.filter((member) => member.role !== 'sportif') : []} invitations={activeSection === 'Sportifs' ? invitations.filter((invitation) => invitation.role === 'sportif') : activeSection === 'Utilisateurs' ? invitations.filter((invitation) => invitation.role !== 'sportif') : []} onAdd={activeSection === 'Sportifs' ? () => setModal('member') : undefined} onInvite={activeSection === 'Utilisateurs' ? () => setModal('invite') : undefined} />
+            )}
           </div>
         </main>
       </div>

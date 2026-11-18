@@ -1,11 +1,31 @@
 ﻿@import 'tailwindcss';
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/barlow-condensed/700.css';
+
+@theme {
+  --font-sans: 'Barlow', 'Segoe UI', sans-serif;
+  --font-condensed: 'Barlow Condensed', sans-serif;
+  --color-bg: #F4F3EF;
+  --color-surface: #FFFFFF;
+  --color-border: #E2E0D8;
+  --color-text: #14161A;
+  --color-muted: #5B606B;
+  --color-federation: #0E2A47;
+  --color-piste: #E2522B;
+  --color-success: #1F8A4C;
+  --color-warning: #B7790A;
+  --color-danger: #C23B30;
+}
 
 :root {
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: 400;
-  color: #0f172a;
-  background: #f3f7fb;
+  color: var(--color-text);
+  background: var(--color-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -13,19 +33,26 @@
 }
 
 html {
-  background: #f3f7fb;
+  background: var(--color-bg);
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #f3f7fb;
+  background: var(--color-bg);
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
+  font-family: var(--font-sans);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 #root {
